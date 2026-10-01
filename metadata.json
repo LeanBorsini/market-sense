@@ -1,0 +1,6 @@
+{
+  "name": "MarketSense AI - Financial Intelligence Hub",
+  "description": "Análisis inteligente de sentimiento de mercado, agregación de noticias y síntesis macroeconómica para inversores a largo plazo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

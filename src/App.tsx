@@ -1,0 +1,1112 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  ShieldCheck, 
+  Search, 
+  Clock, 
+  Zap, 
+  Check, 
+  Copy, 
+  Send, 
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  X,
+  Settings,
+  Calendar,
+  Layers,
+  ArrowUpRight,
+  Filter,
+  BarChart2,
+  CheckCircle,
+  AlertCircle,
+  HelpCircle,
+  ArrowRight,
+  Globe
+} from 'lucide-react';
+import { 
+  Asset, 
+  UserProfile, 
+  INITIAL_ASSET_DATABASE, 
+  OPPORTUNITIES_DATABASE, 
+  OpportunityScan, 
+  DEFAULT_PROFILES 
+} from './data/assets';
+import { 
+  WHY_IT_MOVES_DATA, 
+  DAILY_MACRO_IMPACT, 
+  CRITICAL_EVENTS_CALENDAR, 
+  GLOBAL_MARKET_PULSE, 
+  auditTickerFundamentals,
+  MovementCause,
+  HorizonOutlook 
+} from './data/marketSignals';
+import { PWAInstallButton } from './components/PWAInstallButton';
+import { useAuth } from './context/AuthContext';
+
+export default function App() {
+  // Profiles State
+  const [profiles, setProfiles] = useState<UserProfile[]>(() => {
+    try {
+      const saved = localStorage.getItem('marketsense_profiles_v4');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_PROFILES;
+  });
+
+  const [activeProfileId, setActiveProfileId] = useState<string>(() => {
+    return profiles[0]?.id || 'user-main';
+  });
+
+  const currentProfile = useMemo(() => {
+    return profiles.find(p => p.id === activeProfileId) || profiles[0];
+  }, [profiles, activeProfileId]);
+
+  // Master asset catalog
+  const [catalog, setCatalog] = useState<Asset[]>(() => {
+    try {
+      const saved = localStorage.getItem('marketsense_catalog_v5');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return INITIAL_ASSET_DATABASE;
+  });
+
+  // Tickers in tracking list (OHLA, VOO, BTC, TSM, etc.)
+  const [trackedTickers, setTrackedTickers] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('marketsense_tracked_tickers_v2');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return ['OHLA', 'VOO', 'BTC', 'TSM', 'SAN', 'REP'];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('marketsense_tracked_tickers_v2', JSON.stringify(trackedTickers));
+  }, [trackedTickers]);
+
+  // Accordion state: which ticker is currently expanded (null = none)
+  const [expandedTicker, setExpandedTicker] = useState<string | null>('OHLA');
+
+  // Universal Search & Auditor for ANY ticker in the world
+  const [searchQuery, setSearchQuery] = useState('');
+  const [auditedResult, setAuditedResult] = useState<MovementCause | null>(null);
+
+  // Active Main Navigation Tab (Streamlined to 3 core sections)
+  // 'watchlist': Lista Vertical con Acordeones Desplegables & Previsiones
+  // 'impact': Impacto de la Jornada (Explicado para no técnicos)
+  // 'events_opportunities': Eventos Decisivos & Oportunidades Globales
+  const [activeSection, setActiveSection] = useState<'watchlist' | 'impact' | 'events_opportunities'>('watchlist');
+
+  // Telegram Configuration
+  const [customBotToken, setCustomBotToken] = useState<string>(() => {
+    return localStorage.getItem('marketsense_tg_token') || '';
+  });
+  const [customChatId, setCustomChatId] = useState<string>(() => {
+    return localStorage.getItem('marketsense_tg_chatid') || '';
+  });
+  const [isTelegramSettingsOpen, setIsTelegramSettingsOpen] = useState(false);
+  const [telegramStatusNotice, setTelegramStatusNotice] = useState<string | null>(null);
+  const [isSendingTelegram, setIsSendingTelegram] = useState(false);
+  const [showBotGuide, setShowBotGuide] = useState(false);
+
+  // Dublin Time Display
+  const [dublinTime, setDublinTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setDublinTime(
+        now.toLocaleTimeString('es-ES', {
+          timeZone: 'Europe/Dublin',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        })
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Filter for opportunities
+  const [oppSectorFilter, setOppSectorFilter] = useState<string>('Todos');
+
+  // Clipboard copy state
+  const [isCopied, setIsCopied] = useState(false);
+
+  const copyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  // Toggle accordion item
+  const toggleAccordion = (ticker: string) => {
+    setExpandedTicker(prev => (prev === ticker ? null : ticker));
+  };
+
+  // Execute universal ticker audit
+  const handleSearchAudit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim()) return;
+    const result = auditTickerFundamentals(searchQuery);
+    setAuditedResult(result);
+  };
+
+  // Add audited ticker to tracking list
+  const addAuditedTickerToWatchlist = (ticker: string) => {
+    if (!trackedTickers.includes(ticker)) {
+      setTrackedTickers(prev => [...prev, ticker]);
+      setExpandedTicker(ticker);
+      setTelegramStatusNotice(`Activo ${ticker} añadido a tu lista de seguimiento.`);
+    }
+  };
+
+  // Remove ticker from tracking
+  const removeTickerFromWatchlist = (e: React.MouseEvent, ticker: string) => {
+    e.stopPropagation();
+    if (trackedTickers.length <= 1) return;
+    const updated = trackedTickers.filter(t => t !== ticker);
+    setTrackedTickers(updated);
+    if (expandedTicker === ticker) {
+      setExpandedTicker(updated[0] || null);
+    }
+  };
+
+  // Helper for traffic light styling
+  const getTrafficLightBadge = (light: 'VERDE' | 'AMBAR' | 'ROJO', reason?: string) => {
+    if (light === 'VERDE') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+          <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+          <span>Saludable / Favorable</span>
+        </span>
+      );
+    }
+    if (light === 'AMBAR') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+          <span className="w-2 h-2 rounded-full bg-amber-600"></span>
+          <span>Atención / Ruido</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-300">
+        <span className="w-2 h-2 rounded-full bg-rose-600"></span>
+        <span>Alerta de Balance</span>
+      </span>
+    );
+  };
+
+  // Helper for trend badge
+  const getOutlookBadge = (outlook: HorizonOutlook) => {
+    const isUp = outlook.trend === 'AL_ALZA';
+    const isStable = outlook.trend === 'ESTABLE';
+
+    return (
+      <div className={`p-2.5 rounded-xl border text-xs space-y-1 ${
+        isUp 
+          ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950' 
+          : isStable 
+            ? 'bg-amber-50/70 border-amber-200 text-amber-950' 
+            : 'bg-rose-50/70 border-rose-200 text-rose-950'
+      }`}>
+        <div className="flex items-center justify-between font-bold">
+          <span className="text-[11px] text-slate-600 uppercase tracking-wide">{outlook.period}</span>
+          <span className="flex items-center gap-1 text-xs">
+            <strong className="text-sm font-mono">{outlook.arrow}</strong>
+            <span>{outlook.label}</span>
+          </span>
+        </div>
+        <p className="text-[11px] leading-tight text-slate-700">
+          {outlook.summary}
+        </p>
+      </div>
+    );
+  };
+
+  // Generate clean, high-signal executive briefing text for Telegram
+  const executiveReportText = useMemo(() => {
+    const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    let text = `🏛️ MARKETSENSE · INFORME FUNDAMENTAL\n`;
+    text += `📅 ${dateStr} · 🕒 Dublín: ${dublinTime}\n`;
+    text += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    text += `🎯 PREVISIONES & CAUSA REAL DE TUS ACTIVOS:\n\n`;
+    trackedTickers.forEach(ticker => {
+      const cause = WHY_IT_MOVES_DATA[ticker] || auditTickerFundamentals(ticker);
+      text += `▫️ ${ticker} (${cause.price} · ${cause.change}):\n`;
+      text += `  • Previsión: Corto: ${cause.shortTermOutlook.arrow} ${cause.shortTermOutlook.label} | Medio: ${cause.midTermOutlook.arrow} ${cause.midTermOutlook.label} | Largo: ${cause.longTermOutlook.arrow} ${cause.longTermOutlook.label}\n`;
+      text += `  • Causa: ${cause.rootCause}\n`;
+      text += `  • Filtro de Ruido: ${cause.noiseExplanation}\n`;
+      text += `  • Veredicto: ${cause.verdict}\n\n`;
+    });
+
+    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    text += `⚡ LO MÁS RELEVANTE EXPLICADO SIN RUIDO:\n\n`;
+    DAILY_MACRO_IMPACT.slice(0, 2).forEach(item => {
+      text += `📌 ${item.title}\n`;
+      text += `  • En Cristiano: ${item.plainLanguage}\n`;
+      text += `  • Afecta a: ${item.affectsTickers.join(', ')}\n\n`;
+    });
+
+    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    text += `🔔 PRÓXIMO HITO DECISIVO:\n`;
+    const ev = CRITICAL_EVENTS_CALENDAR[0];
+    if (ev) {
+      text += `• ${ev.date} (${ev.tickerOrSector}): ${ev.event} (Impacto: ${ev.balanceImpact})\n`;
+    }
+
+    return text;
+  }, [trackedTickers, dublinTime]);
+
+  // Dispatch directly via Telegram Bot API
+  const sendTelegramDispatch = async (customText?: string) => {
+    const textToSend = customText || executiveReportText;
+    if (!customBotToken.trim()) {
+      setTelegramStatusNotice('⚠️ Introduce tu Bot Token en los ajustes.');
+      setIsTelegramSettingsOpen(true);
+      return;
+    }
+    if (!customChatId.trim()) {
+      setTelegramStatusNotice('⚠️ Introduce el Chat ID o @NombreCanal en los ajustes.');
+      setIsTelegramSettingsOpen(true);
+      return;
+    }
+
+    setIsSendingTelegram(true);
+    try {
+      localStorage.setItem('marketsense_tg_token', customBotToken.trim());
+      localStorage.setItem('marketsense_tg_chatid', customChatId.trim());
+
+      const res = await fetch(`https://api.telegram.org/bot${customBotToken.trim()}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: customChatId.trim(),
+          text: textToSend
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setTelegramStatusNotice(`✅ ¡Informe enviado con éxito a ${customChatId} por tu Bot!`);
+        setIsTelegramSettingsOpen(false);
+      } else {
+        let errDesc = data.description || 'Revisa tu Token o permisos';
+        if (errDesc.includes('chat not found')) {
+          errDesc = `Canal o Chat no encontrado (${customChatId}). Verifica el nombre.`;
+        } else if (errDesc.includes('bot is not a member') || errDesc.includes('not enough rights')) {
+          errDesc = `Falta hacer Administrador a tu bot en ${customChatId} para que pueda publicar.`;
+        }
+        setTelegramStatusNotice(`❌ Telegram: ${errDesc}`);
+      }
+    } catch (err) {
+      setTelegramStatusNotice('⚠️ Error de conexión con la API de Telegram. Verifica tu red.');
+    } finally {
+      setIsSendingTelegram(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FBF9F4] text-[#191C21] flex flex-col font-sans selection:bg-emerald-200">
+      
+      {/* ─── TOP EDITORIAL HEADER BAR (Warm Ivory Base) ─── */}
+      <header className="border-b border-[#E7E2D8] bg-[#F8F6F0]/95 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 py-3.5">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          
+          {/* Logo & Dublin Clock */}
+          <div className="flex items-center justify-between sm:justify-start gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#191C21] text-[#FBF9F4] flex items-center justify-center font-bold font-mono text-sm shadow-sm">
+                MS
+              </div>
+              <div>
+                <span className="text-base font-bold text-[#191C21] tracking-tight flex items-center gap-1.5">
+                  MarketSense
+                  <span className="text-[11px] font-normal text-slate-500 font-serif italic">· Inteligencia Fundamental</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Dublin Clock */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EFECE4] border border-[#DDD8CD] text-[11px] font-mono text-slate-700">
+              <Clock className="w-3.5 h-3.5 text-slate-600" />
+              <span>Dublín: <strong className="text-[#191C21]">{dublinTime || '17:30'}</strong></span>
+            </div>
+          </div>
+
+          {/* Quick Actions: Direct Telegram Send, PWA Install & Settings */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => sendTelegramDispatch()}
+              disabled={isSendingTelegram}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
+              title="Despachar informe a Telegram"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>
+                {isSendingTelegram 
+                  ? 'Enviando...' 
+                  : customChatId 
+                    ? `Enviar a ${customChatId}` 
+                    : 'Enviar a Telegram'}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setIsTelegramSettingsOpen(true)}
+              className="p-1.5 rounded-lg bg-[#EFECE4] hover:bg-[#E5E1D5] text-slate-600 hover:text-slate-900 border border-[#DDD8CD] transition"
+              title="Configurar Bot y Canal de Telegram"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
+            <PWAInstallButton />
+          </div>
+
+        </div>
+
+        {/* Global Search Bar */}
+        <div className="max-w-5xl mx-auto mt-2.5">
+          <form onSubmit={handleSearchAudit} className="relative flex items-center">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Auditar cualquier activo del mundo (ej. OHLA, VOO, BTC, TSM, SAN, REP, NVDA)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-24 py-1.5 rounded-lg bg-white border border-[#DDD8CD] text-xs text-[#191C21] placeholder-slate-400 focus:outline-none focus:border-emerald-600 shadow-xs transition"
+            />
+            <button
+              type="submit"
+              className="absolute right-1 px-2.5 py-1 rounded bg-[#EFECE4] hover:bg-[#E5E1D5] text-[11px] font-semibold text-slate-700 transition"
+            >
+              Auditar
+            </button>
+          </form>
+        </div>
+      </header>
+
+      {/* ─── STATUS NOTICE BANNER ─── */}
+      {telegramStatusNotice && (
+        <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2 flex items-center justify-between text-xs text-emerald-900 max-w-5xl mx-auto w-full">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{telegramStatusNotice}</span>
+          </div>
+          <button onClick={() => setTelegramStatusNotice(null)} className="text-emerald-700 hover:text-emerald-900">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ─── AUDITED POPUP BANNER (When searching a ticker) ─── */}
+      {auditedResult && (
+        <div className="max-w-5xl mx-auto w-full px-4 lg:px-8 mt-4">
+          <div className="p-4 rounded-xl bg-white border border-emerald-300 shadow-md space-y-3 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-[#191C21] font-mono">{auditedResult.ticker}</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
+                  Auditoría Fundamental
+                </span>
+                <span className="text-xs font-mono font-semibold text-slate-600">{auditedResult.change}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {!trackedTickers.includes(auditedResult.ticker) && (
+                  <button
+                    onClick={() => addAuditedTickerToWatchlist(auditedResult.ticker)}
+                    className="px-2.5 py-1 rounded bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold transition"
+                  >
+                    + Fijar en mi Cartera
+                  </button>
+                )}
+                <button onClick={() => setAuditedResult(null)} className="text-slate-400 hover:text-slate-700">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Quick 3-Horizon Preview */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {getOutlookBadge(auditedResult.shortTermOutlook)}
+              {getOutlookBadge(auditedResult.midTermOutlook)}
+              {getOutlookBadge(auditedResult.longTermOutlook)}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+              <div className="p-2.5 rounded-lg bg-[#FAF8F5] border border-[#E7E2D8] space-y-1">
+                <strong className="text-slate-800 font-semibold block">¿Por qué se mueve?</strong>
+                <p className="text-slate-600 leading-relaxed">{auditedResult.rootCause}</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[#FAF8F5] border border-[#E7E2D8] space-y-1">
+                <strong className="text-emerald-800 font-semibold block">Impacto en Caja & EBITDA</strong>
+                <p className="text-slate-600 leading-relaxed">{auditedResult.ebitdaImpact}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 3 CORE NAVIGATION TABS (Editorial Ivory Style) ─── */}
+      <nav className="border-b border-[#E7E2D8] bg-[#F8F6F0] px-4 lg:px-8 mt-2">
+        <div className="max-w-5xl mx-auto flex items-center gap-2 sm:gap-4 overflow-x-auto py-2 text-xs font-medium">
+          
+          <button
+            onClick={() => setActiveSection('watchlist')}
+            className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 ${
+              activeSection === 'watchlist'
+                ? 'bg-white text-emerald-800 font-bold border border-[#DDD8CD] shadow-xs'
+                : 'text-slate-600 hover:text-[#191C21]'
+            }`}
+          >
+            <BarChart2 className="w-4 h-4 text-emerald-700" />
+            <span>Mi Cartera & Previsiones (Lista)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSection('impact')}
+            className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 ${
+              activeSection === 'impact'
+                ? 'bg-white text-emerald-800 font-bold border border-[#DDD8CD] shadow-xs'
+                : 'text-slate-600 hover:text-[#191C21]'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 text-amber-600" />
+            <span>Noticias Explicadas (En Cristiano)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSection('events_opportunities')}
+            className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 ${
+              activeSection === 'events_opportunities'
+                ? 'bg-white text-emerald-800 font-bold border border-[#DDD8CD] shadow-xs'
+                : 'text-slate-600 hover:text-[#191C21]'
+            }`}
+          >
+            <Globe className="w-4 h-4 text-sky-600" />
+            <span>Eventos Clave & Oportunidades</span>
+          </button>
+
+        </div>
+      </nav>
+
+      {/* ─── MAIN CONTENT CONTAINER ─── */}
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 lg:p-8 space-y-6">
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* VIEW 1: LISTA VERTICAL CON ACORDEÓN DESPLEGABLE Y PREVISIONES     */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {activeSection === 'watchlist' && (
+          <div className="space-y-4 animate-fadeIn">
+            
+            {/* Header info */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E7E2D8] pb-3">
+              <div>
+                <h2 className="text-lg font-bold text-[#191C21] tracking-tight">
+                  Tus Activos en Seguimiento Fundamental
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Toca cualquier activo para desplegar su causa de variación diaria, salud de balance y previsiones.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => copyText(executiveReportText)}
+                  className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-[#FAF8F5] text-slate-700 text-xs font-medium border border-[#DDD8CD] transition flex items-center gap-1 shadow-xs"
+                  title="Copiar informe completo"
+                >
+                  {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{isCopied ? '¡Copiado!' : 'Copiar Síntesis'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Vertical Accordion List */}
+            <div className="space-y-2.5">
+              {trackedTickers.map(ticker => {
+                const cause = WHY_IT_MOVES_DATA[ticker] || auditTickerFundamentals(ticker);
+                const isExpanded = expandedTicker === ticker;
+
+                return (
+                  <div 
+                    key={ticker} 
+                    className={`rounded-2xl border transition-all duration-200 overflow-hidden shadow-xs ${
+                      isExpanded 
+                        ? 'bg-white border-[#C9C4B8] ring-1 ring-emerald-600/10' 
+                        : 'bg-white/80 border-[#E7E2D8] hover:bg-white hover:border-[#DDD8CD]'
+                    }`}
+                  >
+                    
+                    {/* Collapsed Header Row (Always Clickable) */}
+                    <div 
+                      onClick={() => toggleAccordion(ticker)}
+                      className="p-4 sm:p-5 flex items-center justify-between cursor-pointer select-none gap-3"
+                    >
+                      {/* Left: Ticker & Name & Traffic light dot */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                          cause.trafficLight === 'VERDE' 
+                            ? 'bg-emerald-500 ring-4 ring-emerald-100' 
+                            : cause.trafficLight === 'AMBAR' 
+                              ? 'bg-amber-500 ring-4 ring-amber-100' 
+                              : 'bg-rose-500 ring-4 ring-rose-100'
+                        }`} />
+
+                        <div className="min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2">
+                            <span className="font-bold text-base text-[#191C21] font-mono tracking-tight shrink-0">
+                              {cause.ticker}
+                            </span>
+                            <span className="text-xs font-semibold text-slate-700 truncate">
+                              {cause.name}
+                            </span>
+                          </div>
+                          
+                          {/* Mini inline horizon pills */}
+                          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500 font-mono">
+                            <span title={`Corto plazo: ${cause.shortTermOutlook.label}`}>
+                              Corto: <strong className={cause.shortTermOutlook.trend === 'AL_ALZA' ? 'text-emerald-700' : 'text-slate-700'}>{cause.shortTermOutlook.arrow}</strong>
+                            </span>
+                            <span>·</span>
+                            <span title={`Medio plazo: ${cause.midTermOutlook.label}`}>
+                              Medio: <strong className={cause.midTermOutlook.trend === 'AL_ALZA' ? 'text-emerald-700' : 'text-slate-700'}>{cause.midTermOutlook.arrow}</strong>
+                            </span>
+                            <span>·</span>
+                            <span title={`Largo plazo: ${cause.longTermOutlook.label}`}>
+                              Largo: <strong className={cause.longTermOutlook.trend === 'AL_ALZA' ? 'text-emerald-700' : 'text-slate-700'}>{cause.longTermOutlook.arrow}</strong>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Price, Change & Chevron */}
+                      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                        <div className="text-right">
+                          <span className="font-bold text-sm text-[#191C21] font-mono block">
+                            {cause.price}
+                          </span>
+                          <span className={`text-xs font-mono font-semibold ${
+                            cause.isPositive ? 'text-emerald-700' : 'text-rose-700'
+                          }`}>
+                            {cause.change}
+                          </span>
+                        </div>
+
+                        <div className={`p-1.5 rounded-lg text-slate-400 transition-transform ${isExpanded ? 'rotate-180 bg-slate-100' : ''}`}>
+                          <ChevronDown className="w-4 h-4" />
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Expanded Detail Panel (Smooth Accordion Body) */}
+                    {isExpanded && (
+                      <div className="border-t border-[#EFECE4] bg-[#FDFCF9] p-4 sm:p-6 space-y-4 animate-fadeIn">
+                        
+                        {/* Asset Identity Full Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#EFECE4]">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-lg font-bold text-[#191C21] font-mono">
+                                {cause.ticker}
+                              </h3>
+                              <span className="text-sm font-bold text-slate-800">
+                                {cause.name}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Precio de mercado: <strong className="text-[#191C21] font-mono">{cause.price}</strong>
+                              <span className={`ml-1.5 font-mono font-bold ${cause.isPositive ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                ({cause.change})
+                              </span>
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {getTrafficLightBadge(cause.trafficLight)}
+                          </div>
+                        </div>
+
+                        {/* Traffic light reason header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-[#F5F2EB] border border-[#E7E2D8]">
+                          <span className="text-xs text-slate-700 font-medium">
+                            {cause.trafficLightReason}
+                          </span>
+
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider self-start sm:self-auto ${
+                            cause.classification === 'SEÑAL_FUNDAMENTAL' 
+                              ? 'bg-emerald-100 text-emerald-800' 
+                              : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {cause.classification === 'SEÑAL_FUNDAMENTAL' ? 'Señal Tangible' : 'Ruido / Rotación'}
+                          </span>
+                        </div>
+
+                        {/* 1. HORIZON PREVIEW (Corto, Medio y Largo Plazo con Flechas) */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                            Previsión de Futuro (Corto, Medio y Largo Plazo)
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            {getOutlookBadge(cause.shortTermOutlook)}
+                            {getOutlookBadge(cause.midTermOutlook)}
+                            {getOutlookBadge(cause.longTermOutlook)}
+                          </div>
+                        </div>
+
+                        {/* 2. ROOT CAUSE VS NOISE FILTER */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          
+                          <div className="p-3.5 rounded-xl bg-white border border-emerald-200 space-y-1.5">
+                            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide flex items-center gap-1.5">
+                              <TrendingUp className="w-4 h-4" /> ¿Por qué se mueve hoy? (Causa Real)
+                            </span>
+                            <p className="text-xs text-slate-700 leading-relaxed">
+                              {cause.rootCause}
+                            </p>
+                          </div>
+
+                          <div className="p-3.5 rounded-xl bg-white border border-[#DDD8CD] space-y-1.5">
+                            <span className="text-xs font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
+                              <ShieldCheck className="w-4 h-4" /> Filtro de Ruido & Prensa
+                            </span>
+                            <p className="text-xs text-slate-700 leading-relaxed">
+                              {cause.noiseExplanation}
+                            </p>
+                          </div>
+
+                        </div>
+
+                        {/* 3. TANGIBLE BALANCE HEALTH METRICS */}
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                            Salud Contable Tangible (EBITDA, Caja & Deuda)
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                            <div className="p-3 rounded-xl bg-white border border-[#E7E2D8] space-y-1">
+                              <span className="text-[11px] text-slate-500 font-semibold block">EBITDA & Márgenes</span>
+                              <p className="text-xs font-medium text-slate-800">{cause.ebitdaImpact}</p>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-white border border-[#E7E2D8] space-y-1">
+                              <span className="text-[11px] text-slate-500 font-semibold block">Deuda & Solvencia</span>
+                              <p className="text-xs font-medium text-slate-800">{cause.debtSolvencyImpact}</p>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-white border border-[#E7E2D8] space-y-1">
+                              <span className="text-[11px] text-slate-500 font-semibold block">Flujo de Caja Libre (FCF)</span>
+                              <p className="text-xs font-medium text-slate-800">{cause.cashFlowImpact}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 4. BOTTOM LINE VERDICT */}
+                        <div className="p-3.5 rounded-xl bg-emerald-50/50 border border-emerald-200 flex items-start gap-2.5">
+                          <Zap className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                          <div className="space-y-0.5">
+                            <strong className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                              Veredicto Ejecutivo:
+                            </strong>
+                            <p className="text-xs text-slate-800 leading-relaxed">
+                              {cause.verdict}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Actions for this item */}
+                        <div className="flex items-center justify-between pt-2 border-t border-[#EFECE4] text-xs">
+                          <span className="text-slate-400 text-[11px]">
+                            Ticker: {cause.ticker} en cartera activa
+                          </span>
+
+                          <button
+                            onClick={(e) => removeTickerFromWatchlist(e, ticker)}
+                            className="text-slate-400 hover:text-rose-600 transition"
+                            title="Quitar activo de la lista"
+                          >
+                            Quitar activo
+                          </button>
+                        </div>
+
+                      </div>
+                    )}
+
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* VIEW 2: NOTICIAS EXPLICADAS PARA PERSONAS NO TÉCNICAS (EN CRISTIANO) */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {activeSection === 'impact' && (
+          <div className="space-y-4 animate-fadeIn">
+            
+            <div className="border-b border-[#E7E2D8] pb-3">
+              <h2 className="text-lg font-bold text-[#191C21] tracking-tight">
+                Noticias e Impacto Relevante Explicado Sin Jerga
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Traducimos los comunicados y titulares a lo que realmente significa para tu dinero, eliminando el humo.
+              </p>
+            </div>
+
+            <div className="space-y-3.5">
+              {DAILY_MACRO_IMPACT.map(item => (
+                <div key={item.id} className="p-5 rounded-2xl bg-white border border-[#E7E2D8] shadow-xs space-y-3.5">
+                  
+                  {/* Category & Title */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#F5F2EB] pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-[#EFECE4] text-slate-700">
+                        {item.category}
+                      </span>
+                      <h3 className="text-sm sm:text-base font-bold text-[#191C21]">
+                        {item.title}
+                      </h3>
+                    </div>
+
+                    {getTrafficLightBadge(item.trafficLight)}
+                  </div>
+
+                  {/* "EN CRISTIANO" SPECIAL BOX */}
+                  <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 uppercase tracking-wide">
+                      <HelpCircle className="w-4 h-4 text-amber-700" />
+                      <span>Explicado en Cristiano (¿Qué significa para tu dinero?):</span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-amber-950 font-medium leading-relaxed">
+                      {item.plainLanguage}
+                    </p>
+                  </div>
+
+                  {/* Contrast: What media screams vs What accounting says */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E7E2D8] space-y-1">
+                      <span className="text-slate-500 font-semibold block">Ruido de la Prensa Sensacionalista:</span>
+                      <p className="text-slate-700 leading-relaxed">{item.mediaNoise}</p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E7E2D8] space-y-1">
+                      <span className="text-emerald-800 font-semibold block">Realidad Contable & Hechos:</span>
+                      <p className="text-slate-700 leading-relaxed">{item.fundamentalReality}</p>
+                    </div>
+                  </div>
+
+                  {/* Affected tickers in your portfolio */}
+                  <div className="p-3 rounded-xl bg-[#F8F6F0] border border-[#E7E2D8] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-600 font-semibold">Afecta principalmente a:</span>
+                      <div className="flex items-center gap-1.5">
+                        {item.affectsTickers.map(t => (
+                          <span key={t} className="px-2 py-0.5 rounded bg-emerald-700 text-white font-mono font-bold text-[11px]">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <span className="text-emerald-800 font-semibold">
+                      Veredicto: {item.actionableVerdict}
+                    </span>
+                  </div>
+
+                </div>
+              ))}
+            </div>
+
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* VIEW 3: EVENTOS CRÍTICOS & OPORTUNIDADES GLOBALES                 */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {activeSection === 'events_opportunities' && (
+          <div className="space-y-6 animate-fadeIn">
+            
+            {/* Critical Events Calendar */}
+            <div className="space-y-3">
+              <div className="border-b border-[#E7E2D8] pb-2 flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-[#191C21] tracking-tight">
+                    Alertas de Eventos Decisivos de Balance
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Fechas que alteran la caja, los bonos o las tasas.
+                  </p>
+                </div>
+                <span className="text-xs text-slate-500 font-mono">Horario Dublín</span>
+              </div>
+
+              <div className="space-y-2.5">
+                {CRITICAL_EVENTS_CALENDAR.map(ev => (
+                  <div key={ev.id} className="p-4 rounded-xl bg-white border border-[#E7E2D8] flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded font-mono text-xs font-bold bg-[#EFECE4] text-slate-800">
+                          {ev.date}
+                        </span>
+                        <span className="text-xs font-mono text-slate-500">{ev.timeDublin}</span>
+                        <span className="text-xs font-bold text-emerald-800 font-mono">{ev.tickerOrSector}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                          ev.urgency === 'Crítico' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {ev.urgency}
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-bold text-[#191C21]">{ev.event}</h3>
+                      <p className="text-xs text-slate-600 leading-relaxed">{ev.whyMatters}</p>
+                    </div>
+
+                    <div className="md:text-right shrink-0 p-2.5 rounded-lg bg-[#FAF8F5] border border-[#E7E2D8] md:max-w-xs text-xs">
+                      <span className="text-[11px] text-slate-500 font-semibold block">Impacto en Balance:</span>
+                      <span className="font-medium text-emerald-800">{ev.balanceImpact}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Global Market Sentiment vs Fundamental Reality */}
+            <div className="space-y-3 pt-4 border-t border-[#E7E2D8]">
+              <div className="border-b border-[#E7E2D8] pb-2">
+                <h3 className="text-base font-bold text-[#191C21] tracking-tight">
+                  Sentimiento vs. Realidad Contable en Bolsas Globales
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Lectura del pánico o complacencia en las 4 grandes plazas del mundo.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {GLOBAL_MARKET_PULSE.map((pulse, idx) => (
+                  <div key={idx} className="p-4 rounded-xl bg-white border border-[#E7E2D8] space-y-2 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <strong className="text-sm font-bold text-[#191C21] font-mono">{pulse.region}</strong>
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                        pulse.crowdSentiment.includes('Pánico') || pulse.crowdSentiment.includes('Miedo')
+                          ? 'bg-rose-100 text-rose-800'
+                          : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        Masa: {pulse.crowdSentiment}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-700 leading-relaxed">
+                      {pulse.fundamentalReality}
+                    </p>
+
+                    <div className="pt-2 border-t border-[#F5F2EB] flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500 font-mono">{pulse.valuationMetric}</span>
+                      <span className="text-emerald-800 font-semibold">{pulse.strategicGuidance}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Unique Fundamental Opportunities */}
+            <div className="space-y-3 pt-4 border-t border-[#E7E2D8]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-base font-bold text-[#191C21] tracking-tight">
+                    Oportunidades Únicas por Castigo Irracional
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Activos castigados por el ruido pero con balances de acero.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto text-xs pb-1">
+                  {['Todos', 'Bolsa Europea & España', 'Bolsa USA', 'Asia & Emergentes', 'Cripto & Web3'].map(sector => (
+                    <button
+                      key={sector}
+                      onClick={() => setOppSectorFilter(sector)}
+                      className={`px-2.5 py-1 rounded-lg transition whitespace-nowrap ${
+                        oppSectorFilter === sector
+                          ? 'bg-emerald-700 text-white font-semibold'
+                          : 'bg-white text-slate-600 hover:text-[#191C21] border border-[#DDD8CD]'
+                      }`}
+                    >
+                      {sector}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {OPPORTUNITIES_DATABASE
+                  .filter(o => oppSectorFilter === 'Todos' || o.marketSector === oppSectorFilter)
+                  .map(opp => (
+                    <div key={opp.ticker} className="p-4 rounded-xl bg-white border border-[#E7E2D8] space-y-2.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm font-mono text-[#191C21]">{opp.ticker}</span>
+                          <span className="text-xs text-slate-500">{opp.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#EFECE4] text-slate-700 font-mono">
+                            {opp.currentPrice}
+                          </span>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-emerald-700">
+                          {opp.potentialUpside}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-slate-700 leading-relaxed">
+                        {opp.whyIsOpportunity}
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-2 text-[11px] p-2 rounded-lg bg-[#FAF8F5] border border-[#E7E2D8]">
+                        <div>
+                          <span className="text-slate-500 block">EBITDA:</span>
+                          <span className="text-slate-800 font-medium">{opp.ebitdaStrength}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block">Deuda:</span>
+                          <span className="text-slate-800 font-medium">{opp.debtProfile}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[11px] text-slate-500">
+                          Riesgo/Beneficio: <strong className="text-[#191C21]">{opp.riskRewardRatio}</strong>
+                        </span>
+
+                        <button
+                          onClick={() => addAuditedTickerToWatchlist(opp.ticker)}
+                          disabled={trackedTickers.includes(opp.ticker)}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                            trackedTickers.includes(opp.ticker)
+                              ? 'bg-[#EFECE4] text-slate-500'
+                              : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                          }`}
+                        >
+                          {trackedTickers.includes(opp.ticker) ? 'En tu Cartera' : '+ Fijar Activo'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+          </div>
+        )}
+
+      </main>
+
+      {/* ─── TELEGRAM SETTINGS MODAL ─── */}
+      {isTelegramSettingsOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-[#DDD8CD] w-full max-w-lg rounded-2xl p-5 sm:p-6 space-y-4 shadow-xl">
+            
+            <div className="flex items-center justify-between border-b border-[#E7E2D8] pb-3">
+              <div className="flex items-center gap-2">
+                <Send className="w-5 h-5 text-emerald-700" />
+                <h3 className="text-base font-bold text-[#191C21]">
+                  Despacho Directo a Telegram (Bot Oficial)
+                </h3>
+              </div>
+              <button onClick={() => setIsTelegramSettingsOpen(false)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Configura tu Bot de Telegram para que MarketSense envíe tus informes y alertas al canal de tus colegas o a tu chat privado con 1 solo clic en segundo plano.
+            </p>
+
+            {/* Quick Guide Toggle */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowBotGuide(!showBotGuide)}
+                className="text-xs text-emerald-700 hover:text-emerald-800 underline font-semibold flex items-center gap-1"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{showBotGuide ? 'Ocultar Guía' : '¿Cómo se crea el Bot y el Canal? (Guía 2 min)'}</span>
+              </button>
+
+              {showBotGuide && (
+                <div className="mt-2.5 p-3 rounded-xl bg-[#FAF8F5] border border-[#DDD8CD] text-xs text-slate-700 space-y-2">
+                  <strong className="text-slate-900 block">Paso a Paso Rápido (100% Gratis):</strong>
+                  <p>1. En Telegram busca a <code>@BotFather</code> y escribe <code>/newbot</code>.</p>
+                  <p>2. Asígnale nombre y usuario. BotFather te responderá con tu <strong>Bot Token</strong> (algo como <code>7123456789:AAHk...</code>).</p>
+                  <p>3. <strong>Para enviar a un Canal o Grupo con amigos:</strong> Crea el canal, añade tu bot como <strong>Administrador</strong> (para que tenga permiso de publicar) y escribe en Chat ID el <code>@nombre_de_tu_canal</code>.</p>
+                  <p>4. <strong>Para enviarte solo a ti:</strong> Inicia chat con tu bot y escribe tu ID de usuario de Telegram.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-600 font-semibold block mb-1">
+                  Bot Token (de @BotFather)
+                </label>
+                <input
+                  type="text"
+                  placeholder="ej. 7123456789:AAHkL9Z..."
+                  value={customBotToken}
+                  onChange={(e) => setCustomBotToken(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-[#DDD8CD] text-[#191C21] font-mono text-xs focus:outline-none focus:border-emerald-700"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-600 font-semibold block mb-1">
+                  Chat ID o @NombreCanal
+                </label>
+                <input
+                  type="text"
+                  placeholder="ej. @ColegasInversores o tu ID numérico"
+                  value={customChatId}
+                  onChange={(e) => setCustomChatId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-[#DDD8CD] text-[#191C21] font-mono text-xs focus:outline-none focus:border-emerald-700"
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between gap-3">
+              <button
+                onClick={() => sendTelegramDispatch()}
+                disabled={isSendingTelegram}
+                className="flex-1 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition flex items-center justify-center gap-1.5"
+              >
+                <CheckCircle className="w-3.5 h-3.5" />
+                <span>{isSendingTelegram ? 'Enviando a Telegram...' : 'Guardar y Enviar Prueba'}</span>
+              </button>
+
+              <button
+                onClick={() => setIsTelegramSettingsOpen(false)}
+                className="px-4 py-2 rounded-xl bg-[#EFECE4] hover:bg-[#E5E1D5] text-slate-700 text-xs font-semibold"
+              >
+                Cerrar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ─── STREAMLINED FOOTER ─── */}
+      <footer className="border-t border-[#E7E2D8] bg-[#F8F6F0] py-4 px-4 text-center text-xs text-slate-500">
+        <p>MarketSense · Terminal Fundamental & Previsiones · Dublín & Bolsas Globales</p>
+      </footer>
+
+    </div>
+  );
+}

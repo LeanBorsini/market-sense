@@ -48,6 +48,8 @@ import { PWAInstallButton } from './components/PWAInstallButton';
 import { useAuth } from './context/AuthContext';
 
 export default function App() {
+  const { currentUser, loginWithGoogle, logout, saveUserDataToCloud, cloudData } = useAuth();
+
   // Profiles State
   const [profiles, setProfiles] = useState<UserProfile[]>(() => {
     try {
@@ -89,9 +91,30 @@ export default function App() {
     return ['OHLA', 'VOO', 'BTC', 'TSM', 'SAN', 'REP'];
   });
 
+  // Sync personal watchlist and custom prices from cloud when user logs in
+  useEffect(() => {
+    if (currentUser && cloudData) {
+      if (cloudData.keyTickers && Array.isArray(cloudData.keyTickers) && cloudData.keyTickers.length > 0) {
+        setTrackedTickers(cloudData.keyTickers);
+      }
+      if (cloudData.customPrices && typeof cloudData.customPrices === 'object') {
+        const mappedPrices: Record<string, string> = {};
+        Object.entries(cloudData.customPrices).forEach(([tk, val]) => {
+          if (typeof val === 'string') mappedPrices[tk] = val;
+          else if (val && typeof val === 'object' && (val as any).price) mappedPrices[tk] = (val as any).price;
+        });
+        setCustomPrices(prev => ({ ...prev, ...mappedPrices }));
+      }
+    }
+  }, [currentUser, cloudData]);
+
+  // Save changes to localStorage and Cloud (if logged in)
   useEffect(() => {
     localStorage.setItem('marketsense_tracked_tickers_v2', JSON.stringify(trackedTickers));
-  }, [trackedTickers]);
+    if (currentUser) {
+      saveUserDataToCloud({ keyTickers: trackedTickers });
+    }
+  }, [trackedTickers, currentUser]);
 
   // Accordion state: which ticker is currently expanded (null = none)
   const [expandedTicker, setExpandedTicker] = useState<string | null>('OHLA');
@@ -701,6 +724,44 @@ export default function App() {
             </button>
 
             <PWAInstallButton />
+
+            {/* User Profile / Google Auth Pill */}
+            {currentUser ? (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#EFECE4] border border-[#DDD8CD] text-xs">
+                {currentUser.photoURL ? (
+                  <img src={currentUser.photoURL} alt={currentUser.displayName || ''} className="w-5 h-5 rounded-full object-cover" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-slate-800 text-white text-[10px] flex items-center justify-center font-bold">
+                    {currentUser.displayName?.[0] || 'U'}
+                  </div>
+                )}
+                <span className="font-semibold text-slate-800 hidden sm:inline max-w-[85px] truncate" title={currentUser.email || ''}>
+                  {currentUser.displayName?.split(' ')[0] || 'Mi Cartera'}
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Sincronizado en la Nube"></span>
+                <button
+                  onClick={logout}
+                  className="text-[10px] text-slate-400 hover:text-rose-700 ml-0.5 cursor-pointer"
+                  title="Cerrar sesión"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={loginWithGoogle}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 border border-[#DDD8CD] text-xs font-semibold transition active:scale-95 shadow-2xs cursor-pointer"
+                title="Inicia sesión con Google para sincronizar tu cartera personal en la nube"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.27-2.09 3.665-5.17 3.665-9.12z"/>
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.13C3.26 21.39 7.33 24 12 24z"/>
+                  <path fill="#FBBC05" d="M5.28 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.13z"/>
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.61 1.25 6.58l4.03 3.13c.95-2.83 3.6-4.96 6.72-4.96z"/>
+                </svg>
+                <span className="hidden sm:inline">Tu Cuenta</span>
+              </button>
+            )}
           </div>
 
         </div>
@@ -842,11 +903,18 @@ export default function App() {
             {/* Header info */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E7E2D8] pb-3">
               <div>
-                <h2 className="text-lg font-bold text-[#191C21] tracking-tight">
-                  Tus Activos en Seguimiento Fundamental
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-[#191C21] tracking-tight">
+                    Tus Activos en Seguimiento Fundamental
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono">
+                    {trackedTickers.length} fijados
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Toca cualquier activo para desplegar su causa de variación diaria, salud de balance y previsiones.
+                  {currentUser 
+                    ? `👤 Watchlist personal de ${currentUser.displayName || currentUser.email} · 🟢 Sincronizada en la Nube`
+                    : 'Watchlist personal guardada en este dispositivo. Toca cualquier activo para ver su causa y previsiones.'}
                 </p>
               </div>
 
@@ -861,6 +929,24 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {/* Cloud Sync info banner if not logged in */}
+            {!currentUser && (
+              <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-base shrink-0">☁️</span>
+                  <span className="text-amber-900 leading-snug">
+                    <strong>Cada usuario tiene su propia Watchlist privada.</strong> Ahora mismo está guardada en tu navegador. Si quieres sincronizarla automáticamente entre tu móvil, tablet y PC, conecta tu cuenta de Google.
+                  </span>
+                </div>
+                <button
+                  onClick={loginWithGoogle}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs transition shrink-0 self-start sm:self-auto cursor-pointer"
+                >
+                  Conectar con Google
+                </button>
+              </div>
+            )}
 
             {/* Vertical Accordion List */}
             <div className="space-y-2.5">

@@ -305,14 +305,16 @@ export default function App() {
   // Generate clean, high-signal executive briefing text for Telegram
   const executiveReportText = useMemo(() => {
     const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    const tzLabel = clockMode === 'local' ? `Local ${userCity}` : clockMode === 'ny' ? 'Wall St (NY)' : 'Dublín';
     let text = `🏛️ MARKETSENSE · INFORME FUNDAMENTAL\n`;
-    text += `📅 ${dateStr} · 🕒 Dublín: ${dublinTime}\n`;
+    text += `📅 ${dateStr} · 🕒 ${clockTime} (${tzLabel})\n`;
     text += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
     text += `🎯 PREVISIONES & CAUSA REAL DE TUS ACTIVOS:\n\n`;
     trackedTickers.forEach(ticker => {
       const cause = WHY_IT_MOVES_DATA[ticker] || auditTickerFundamentals(ticker);
-      text += `▫️ ${ticker} (${cause.price} · ${cause.change}):\n`;
+      const activePrice = customPrices[ticker] || cause.price;
+      text += `▫️ ${ticker} (${activePrice} · ${cause.change}):\n`;
       text += `  • Previsión: Corto: ${cause.shortTermOutlook.arrow} ${cause.shortTermOutlook.label} | Medio: ${cause.midTermOutlook.arrow} ${cause.midTermOutlook.label} | Largo: ${cause.longTermOutlook.arrow} ${cause.longTermOutlook.label}\n`;
       text += `  • Causa: ${cause.rootCause}\n`;
       text += `  • Filtro de Ruido: ${cause.noiseExplanation}\n`;
@@ -335,7 +337,7 @@ export default function App() {
     }
 
     return text;
-  }, [trackedTickers, dublinTime]);
+  }, [trackedTickers, clockTime, clockMode, userCity, customPrices]);
 
   // Dispatch directly via Telegram Bot API
   const sendTelegramDispatch = async (customText?: string) => {

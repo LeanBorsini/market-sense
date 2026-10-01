@@ -141,26 +141,68 @@ export default function App() {
   const [isSendingTelegram, setIsSendingTelegram] = useState(false);
   const [showBotGuide, setShowBotGuide] = useState(false);
 
-  // Dublin Time Display
-  const [dublinTime, setDublinTime] = useState<string>('');
+  // Dynamic Clock State (Default: device local time, with 1-click toggle to Wall St & Europe)
+  type ClockMode = 'local' | 'ny' | 'dublin';
+  const [clockMode, setClockMode] = useState<ClockMode>(() => {
+    return (localStorage.getItem('marketsense_clock_mode') as ClockMode) || 'local';
+  });
+  const [clockTime, setClockTime] = useState<string>('');
+
+  // Detect user local device city / time zone
+  const userCity = useMemo(() => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const raw = tz.split('/')[1] || tz;
+      return raw.replace(/_/g, ' ');
+    } catch {
+      return 'Local';
+    }
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setDublinTime(
-        now.toLocaleTimeString('es-ES', {
-          timeZone: 'Europe/Dublin',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        })
-      );
+      if (clockMode === 'local') {
+        setClockTime(
+          now.toLocaleTimeString('es-ES', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          })
+        );
+      } else if (clockMode === 'ny') {
+        setClockTime(
+          now.toLocaleTimeString('es-ES', {
+            timeZone: 'America/New_York',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          })
+        );
+      } else {
+        setClockTime(
+          now.toLocaleTimeString('es-ES', {
+            timeZone: 'Europe/Dublin',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          })
+        );
+      }
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [clockMode]);
+
+  const toggleClockMode = () => {
+    const nextMode: ClockMode = clockMode === 'local' ? 'ny' : clockMode === 'ny' ? 'dublin' : 'local';
+    setClockMode(nextMode);
+    localStorage.setItem('marketsense_clock_mode', nextMode);
+  };
 
   // Filter for opportunities
   const [oppSectorFilter, setOppSectorFilter] = useState<string>('Todos');
@@ -363,11 +405,19 @@ export default function App() {
               </div>
             </div>
 
-            {/* Dublin Clock */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EFECE4] border border-[#DDD8CD] text-[11px] font-mono text-slate-700">
-              <Clock className="w-3.5 h-3.5 text-slate-600" />
-              <span>Dublín: <strong className="text-[#191C21]">{dublinTime || '17:30'}</strong></span>
-            </div>
+            {/* Interactive Device / Market Clock */}
+            <button
+              onClick={toggleClockMode}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EFECE4] hover:bg-[#E5E1D5] border border-[#DDD8CD] text-[11px] font-mono text-slate-700 transition cursor-pointer select-none"
+              title="Toca para alternar entre tu hora local, Wall Street (NY) o Europa (Dublín/Madrid)"
+            >
+              <Clock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+              <span>
+                {clockMode === 'local' ? `Tu Hora (${userCity})` : clockMode === 'ny' ? 'Wall St (NY)' : 'Dublín / BME'}:
+                <strong className="text-[#191C21] ml-1">{clockTime || '17:30'}</strong>
+              </span>
+              <span className="text-[10px] text-slate-400 ml-0.5" title="Cambiar zona">⇄</span>
+            </button>
           </div>
 
           {/* Quick Actions: Direct Telegram Send, PWA Install & Settings */}

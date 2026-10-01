@@ -23,6 +23,7 @@ import {
   AlertCircle,
   HelpCircle,
   ArrowRight,
+  RefreshCw,
   Globe
 } from 'lucide-react';
 import { 
@@ -136,10 +137,22 @@ export default function App() {
   const [customChatId, setCustomChatId] = useState<string>(() => {
     return localStorage.getItem('marketsense_tg_chatid') || '';
   });
+  const [chatDisplayName, setChatDisplayName] = useState<string>(() => {
+    return localStorage.getItem('marketsense_tg_display_name') || 'Market_sense';
+  });
+  const [autoDispatchEnabled, setAutoDispatchEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('marketsense_tg_auto_dispatch');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [lastAutoDispatchWindow, setLastAutoDispatchWindow] = useState<string>(() => {
+    return localStorage.getItem('marketsense_last_auto_window') || '';
+  });
+
   const [isTelegramSettingsOpen, setIsTelegramSettingsOpen] = useState(false);
   const [telegramStatusNotice, setTelegramStatusNotice] = useState<string | null>(null);
   const [isSendingTelegram, setIsSendingTelegram] = useState(false);
   const [showBotGuide, setShowBotGuide] = useState(false);
+  const [showCronGuide, setShowCronGuide] = useState(false);
   const [isDetectingChatId, setIsDetectingChatId] = useState(false);
   const [detectStatus, setDetectStatus] = useState<string | null>(null);
 
@@ -174,7 +187,7 @@ export default function App() {
         const chat = u.message?.chat || u.my_chat_member?.chat || u.channel_post?.chat;
         if (chat && chat.id) {
           foundChatId = String(chat.id);
-          foundTitle = chat.title || chat.username || chat.first_name || 'Grupo';
+          foundTitle = chat.title || chat.username || chat.first_name || 'Market_sense';
           break;
         }
       }
@@ -182,6 +195,10 @@ export default function App() {
       if (foundChatId) {
         setCustomChatId(foundChatId);
         localStorage.setItem('marketsense_tg_chatid', foundChatId);
+        if (foundTitle && foundTitle !== 'Grupo') {
+          setChatDisplayName(foundTitle);
+          localStorage.setItem('marketsense_tg_display_name', foundTitle);
+        }
         setDetectStatus(`✅ ¡Detectado con éxito! Grupo: "${foundTitle}" (ID: ${foundChatId}). Ya puedes pulsar Guardar y Enviar.`);
       } else {
         setDetectStatus('💡 Escribe un mensaje de prueba (ej. "hola") dentro de tu grupo de Telegram y vuelve a pulsar.');
@@ -391,9 +408,41 @@ export default function App() {
     return text;
   }, [trackedTickers, clockTime, clockMode, userCity, customPrices]);
 
-  // Dispatch directly via Telegram Bot API
+  // Build a dedicated, high-signal Telegram message for a single asset
+  const buildAssetTelegramMessage = (ticker: string): string => {
+    const cause = WHY_IT_MOVES_DATA[ticker] || auditTickerFundamentals(ticker);
+    const activePrice = customPrices[ticker] || cause.price;
+    const trafficEmoji = cause.trafficLight === 'VERDE' ? '🟢' : cause.trafficLight === 'AMBAR' ? '🟡' : '🔴';
+    const trafficText = cause.trafficLight === 'VERDE' 
+      ? 'Balance Sólido / Protegido' 
+      : cause.trafficLight === 'AMBAR' 
+        ? 'En Vigilancia / Transición' 
+        : 'Riesgo / Alerta';
+
+    let msg = `📊 [ ${cause.ticker} ] · ${cause.name.toUpperCase()}\n`;
+    msg += `🏷️ Cotización: ${activePrice} (${cause.change}) · ${cause.exchange}\n`;
+    msg += `🚦 Estado: ${trafficEmoji} ${trafficText}\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    msg += `🎯 PREVISIÓN DE FUTURO:\n`;
+    msg += `• Corto Plazo (1-3 meses): ${cause.shortTermOutlook.arrow} ${cause.shortTermOutlook.label}\n  ↳ ${cause.shortTermOutlook.summary}\n\n`;
+    msg += `• Medio Plazo (6-12 meses): ${cause.midTermOutlook.arrow} ${cause.midTermOutlook.label}\n  ↳ ${cause.midTermOutlook.summary}\n\n`;
+    msg += `• Largo Plazo (1-3+ años): ${cause.longTermOutlook.arrow} ${cause.longTermOutlook.label}\n  ↳ ${cause.longTermOutlook.summary}\n\n`;
+
+    msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `🔍 CAUSA REAL DEL PRECIO:\n${cause.rootCause}\n\n`;
+    msg += `🛡️ FILTRO DE RUIDO MEDIÁTICO:\n${cause.noiseExplanation}\n\n`;
+    msg += `💰 SALUD FINANCIERA & CAJA:\n`;
+    msg += `• Flujo de Caja: ${cause.cashFlowImpact}\n`;
+    msg += `• Deuda & Solvencia: ${cause.debtSolvencyImpact}\n`;
+    msg += `• EBITDA Operativo: ${cause.ebitdaImpact}\n\n`;
+    msg += `⚖️ VEREDICTO EJECUTIVO:\n👉 ${cause.verdict}`;
+
+    return msg;
+  };
+
+  // Dispatch directly via Telegram Bot API (each asset sent in a separate message)
   const sendTelegramDispatch = async (customText?: string) => {
-    const textToSend = customText || executiveReportText;
     if (!customBotToken.trim()) {
       setTelegramStatusNotice('⚠️ Introduce tu Bot Token en los ajustes.');
       setIsTelegramSettingsOpen(true);
@@ -410,33 +459,175 @@ export default function App() {
       localStorage.setItem('marketsense_tg_token', customBotToken.trim());
       localStorage.setItem('marketsense_tg_chatid', customChatId.trim());
 
-      const res = await fetch(`https://api.telegram.org/bot${customBotToken.trim()}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: customChatId.trim(),
-          text: textToSend
-        })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setTelegramStatusNotice(`✅ ¡Informe enviado con éxito a ${customChatId} por tu Bot!`);
-        setIsTelegramSettingsOpen(false);
-      } else {
-        let errDesc = data.description || 'Revisa tu Token o permisos';
-        if (errDesc.includes('chat not found')) {
-          errDesc = `Chat no encontrado. En grupos privados ("${customChatId}") Telegram no acepta el nombre escrito; requiere su ID numérico (ej. -100...). Entra en ajustes ⚙️ y pulsa "Detectar ID de mi Grupo".`;
-        } else if (errDesc.includes('bot is not a member') || errDesc.includes('not enough rights')) {
-          errDesc = `Falta hacer Administrador a tu bot en ${customChatId} para que pueda publicar.`;
+      // If customText is provided (e.g. sending a single asset), dispatch only that
+      if (customText) {
+        const res = await fetch(`https://api.telegram.org/bot${customBotToken.trim()}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: customChatId.trim(),
+            text: customText
+          })
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          throw new Error(data.description || 'Error al enviar a Telegram');
         }
-        setTelegramStatusNotice(`❌ Telegram: ${errDesc}`);
+        setTelegramStatusNotice(`✅ ¡Activo enviado con éxito a Telegram!`);
+        setIsTelegramSettingsOpen(false);
+        return;
       }
-    } catch (err) {
-      setTelegramStatusNotice('⚠️ Error de conexión con la API de Telegram. Verifica tu red.');
+
+      // Otherwise, dispatch portfolio organized by separate messages:
+      // 1. Header message
+      // 2. Individual message for EACH tracked asset
+      // 3. Macro events and calendar closing message
+      const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+      const tzLabel = clockMode === 'local' ? `Local ${userCity}` : clockMode === 'ny' ? 'Wall St (NY)' : 'Dublín';
+
+      const headerMsg = `🏛️ MARKETSENSE · INFORME FUNDAMENTAL\n` +
+        `📅 ${dateStr} · 🕒 ${clockTime} (${tzLabel})\n` +
+        `📋 Despacho de ${trackedTickers.length} activos en seguimiento estratégico.\n` +
+        `━━━━━━━━━━━━━━━━━━━━━\n` +
+        `A continuación se remite la ficha contable y previsiones de cada activo por separado 👇`;
+
+      const assetMessages = trackedTickers.map(ticker => buildAssetTelegramMessage(ticker));
+
+      let closingMsg = `⚡ LO MÁS RELEVANTE EXPLICADO SIN RUIDO:\n\n`;
+      DAILY_MACRO_IMPACT.slice(0, 2).forEach(item => {
+        closingMsg += `📌 ${item.title}\n` +
+          `  • En Cristiano: ${item.plainLanguage}\n` +
+          `  • Afecta a: ${item.affectsTickers.join(', ')}\n\n`;
+      });
+      const ev = CRITICAL_EVENTS_CALENDAR[0];
+      if (ev) {
+        closingMsg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        closingMsg += `🔔 PRÓXIMO HITO DECISIVO:\n` +
+          `• ${ev.date} (${ev.tickerOrSector}): ${ev.event} (Impacto: ${ev.balanceImpact})\n`;
+      }
+
+      const allMessages = [headerMsg, ...assetMessages, closingMsg];
+
+      for (let i = 0; i < allMessages.length; i++) {
+        const msgText = allMessages[i];
+        const res = await fetch(`https://api.telegram.org/bot${customBotToken.trim()}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: customChatId.trim(),
+            text: msgText
+          })
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          let errDesc = data.description || 'Revisa tu Token o permisos';
+          if (errDesc.includes('chat not found')) {
+            errDesc = `Chat no encontrado. En grupos privados ("${customChatId}") Telegram no acepta el nombre escrito; requiere su ID numérico (ej. -100...). Entra en ajustes ⚙️ y pulsa "Detectar ID de mi Grupo".`;
+          } else if (errDesc.includes('bot is not a member') || errDesc.includes('not enough rights')) {
+            errDesc = `Falta hacer Administrador a tu bot en ${customChatId} para que pueda publicar.`;
+          }
+          throw new Error(errDesc);
+        }
+
+        // Brief delay between sequential messages to respect rate limits and keep order
+        if (i < allMessages.length - 1) {
+          await new Promise(r => setTimeout(r, 400));
+        }
+      }
+
+      setTelegramStatusNotice(
+        `✅ ¡Enviados con éxito ${trackedTickers.length} informes separados a tu grupo!`
+      );
+      setIsTelegramSettingsOpen(false);
+    } catch (err: any) {
+      setTelegramStatusNotice(`❌ Telegram: ${err.message || 'Error de conexión'}`);
     } finally {
       setIsSendingTelegram(false);
     }
   };
+
+  // Key Market Sessions & Fed Windows (in local/CET reference)
+  interface MarketWindow {
+    id: string;
+    name: string;
+    timeLabel: string;
+    hourCET: number;
+    minuteCET: number;
+    description: string;
+  }
+
+  const MARKET_WINDOWS: MarketWindow[] = [
+    { id: 'eu_open', name: 'Apertura Europa', timeLabel: '09:00 CET', hourCET: 9, minuteCET: 0, description: 'Campana BME Madrid & Europa + Datos preliminares' },
+    { id: 'us_open', name: 'Apertura Wall St', timeLabel: '15:30 CET', hourCET: 15, minuteCET: 30, description: 'Campana NYSE/Nasdaq + Empleo/IPC de EE.UU.' },
+    { id: 'fed_window', name: 'Ventana FED / Powell', timeLabel: '20:00 CET', hourCET: 20, minuteCET: 0, description: 'Ruedas de prensa de Powell, tipos de interés y minutas' },
+    { id: 'daily_close', name: 'Cierre de Mercados', timeLabel: '22:00 CET', hourCET: 22, minuteCET: 0, description: 'Cierre de Wall Street y cómputo de variaciones contables' },
+  ];
+
+  // Calculate next key market window
+  const currentMarketWindow = useMemo(() => {
+    const now = new Date();
+    const cetFormatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Madrid',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+    const parts = cetFormatter.formatToParts(now);
+    const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+    const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+    const totalMins = hour * 60 + minute;
+
+    for (const win of MARKET_WINDOWS) {
+      const winMins = win.hourCET * 60 + win.minuteCET;
+      if (totalMins < winMins) {
+        return win;
+      }
+    }
+    return MARKET_WINDOWS[0];
+  }, [clockTime]);
+
+  // Automated Dispatch at Market Openings & Fed Windows
+  useEffect(() => {
+    if (!autoDispatchEnabled || !customBotToken || !customChatId) return;
+
+    const checkScheduledDispatch = () => {
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const cetFormatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Madrid',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false
+      });
+      const parts = cetFormatter.formatToParts(now);
+      const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+      const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+      const totalMins = hour * 60 + minute;
+
+      for (const win of MARKET_WINDOWS) {
+        const winMins = win.hourCET * 60 + win.minuteCET;
+        const windowKey = `${todayStr}_${win.id}`;
+
+        // If we are within 30 minutes after the window trigger
+        if (totalMins >= winMins && totalMins <= winMins + 30) {
+          const stored = localStorage.getItem('marketsense_last_auto_window');
+          if (stored !== windowKey) {
+            localStorage.setItem('marketsense_last_auto_window', windowKey);
+            setLastAutoDispatchWindow(windowKey);
+            sendTelegramDispatch();
+            setTelegramStatusNotice(
+              `🔔 [Auto-Despacho] Informe de ${win.name} (${win.timeLabel}) enviado a ${chatDisplayName || 'Market_sense'}`
+            );
+            break;
+          }
+        }
+      }
+    };
+
+    checkScheduledDispatch();
+    const interval = setInterval(checkScheduledDispatch, 60000);
+    return () => clearInterval(interval);
+  }, [autoDispatchEnabled, customBotToken, customChatId, chatDisplayName]);
 
   return (
     <div className="min-h-screen bg-[#FBF9F4] text-[#191C21] flex flex-col font-sans selection:bg-emerald-200">
@@ -472,6 +663,15 @@ export default function App() {
               </span>
               <span className="text-[10px] text-slate-400 ml-0.5" title="Cambiar zona">⇄</span>
             </button>
+
+            {/* Next Market Bell Pill */}
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#FAF8F5] border border-[#DDD8CD] text-[11px] text-slate-600">
+              <span className={`w-2 h-2 rounded-full ${autoDispatchEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+              <span>Campana: <strong className="text-slate-900">{currentMarketWindow.name} ({currentMarketWindow.timeLabel})</strong></span>
+              {autoDispatchEnabled && (
+                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1 rounded">Auto</span>
+              )}
+            </div>
           </div>
 
           {/* Quick Actions: Direct Telegram Send, PWA Install & Settings */}
@@ -487,7 +687,7 @@ export default function App() {
                 {isSendingTelegram 
                   ? 'Enviando...' 
                   : customChatId 
-                    ? `Enviar a ${customChatId}` 
+                    ? `Enviar a ${chatDisplayName || 'Market_sense'}` 
                     : 'Enviar a Telegram'}
               </span>
             </button>
@@ -792,6 +992,20 @@ export default function App() {
                               title="Ajustar precio manualmente"
                             >
                               ✏️ Ajustar
+                            </button>
+
+                            {/* Send single asset to Telegram */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                sendTelegramDispatch(buildAssetTelegramMessage(ticker));
+                              }}
+                              disabled={isSendingTelegram}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold transition flex items-center gap-1 active:scale-95 cursor-pointer disabled:opacity-50"
+                              title={`Enviar solo el informe de ${cause.ticker} a Telegram`}
+                            >
+                              <Send className="w-3.5 h-3.5 text-emerald-700" />
+                              <span>Enviar a Telegram</span>
                             </button>
 
                             {getTrafficLightBadge(cause.trafficLight)}
@@ -1268,6 +1482,25 @@ export default function App() {
 
             <div className="space-y-3">
               <div>
+                <label className="text-xs text-slate-700 font-semibold block mb-1">
+                  Nombre visible en el botón de la app
+                </label>
+                <input
+                  type="text"
+                  placeholder="ej. Market_sense"
+                  value={chatDisplayName}
+                  onChange={(e) => {
+                    setChatDisplayName(e.target.value);
+                    localStorage.setItem('marketsense_tg_display_name', e.target.value);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-[#DDD8CD] text-[#191C21] text-xs focus:outline-none focus:border-emerald-700"
+                />
+                <span className="text-[10px] text-slate-500 mt-0.5 block">
+                  Así se mostrará el botón principal: <strong>"Enviar a {chatDisplayName || 'Market_sense'}"</strong>.
+                </span>
+              </div>
+
+              <div>
                 <label className="text-xs text-slate-600 font-semibold block mb-1">
                   Bot Token (de @BotFather)
                 </label>
@@ -1283,7 +1516,7 @@ export default function App() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs text-slate-700 font-semibold block">
-                    Chat ID (o @NombreCanal)
+                    Chat ID Técnico de Telegram
                   </label>
                   <span className="text-[10px] text-slate-500 font-mono">
                     Grupos: requiere ID numérico
@@ -1291,7 +1524,7 @@ export default function App() {
                 </div>
                 <input
                   type="text"
-                  placeholder="ej. -1002345678901 o @TuCanal"
+                  placeholder="ej. -1004499299168"
                   value={customChatId}
                   onChange={(e) => setCustomChatId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-white border border-[#DDD8CD] text-[#191C21] font-mono text-xs focus:outline-none focus:border-emerald-700"
@@ -1333,6 +1566,116 @@ export default function App() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Automated Market Windows Dispatch Toggle */}
+              <div className="p-3 rounded-xl bg-[#F9F7F2] border border-[#DDD8CD] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-emerald-800" />
+                    <span className="text-xs font-bold text-slate-900">
+                      Auto-Despacho en Horarios de Mercado & FED
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newVal = !autoDispatchEnabled;
+                      setAutoDispatchEnabled(newVal);
+                      localStorage.setItem('marketsense_tg_auto_dispatch', String(newVal));
+                    }}
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-bold transition cursor-pointer ${
+                      autoDispatchEnabled
+                        ? 'bg-emerald-700 text-white'
+                        : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {autoDispatchEnabled ? 'Activado' : 'Pausado'}
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Cuando la app está abierta durante las campanas bursátiles o noticias decisivas, despacha sola el informe a <strong>{chatDisplayName || 'Market_sense'}</strong>:
+                </p>
+
+                <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                  <div className="p-2 rounded-lg bg-white border border-[#E7E2D8] space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800">🇪🇺 Apertura Europa</span>
+                      <span className="font-mono text-emerald-800 font-bold">09:00 CET</span>
+                    </div>
+                    <span className="text-slate-500 block text-[9px]">Campana Madrid BME & Londres</span>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-white border border-[#E7E2D8] space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800">🇺🇸 Apertura Wall St</span>
+                      <span className="font-mono text-emerald-800 font-bold">15:30 CET</span>
+                    </div>
+                    <span className="text-slate-500 block text-[9px]">NYSE/Nasdaq + IPC/Empleo USA</span>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-white border border-[#E7E2D8] space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800">🏛️ Ventana FED / BCE</span>
+                      <span className="font-mono text-emerald-800 font-bold">20:00 CET</span>
+                    </div>
+                    <span className="text-slate-500 block text-[9px]">Powell, Tipos de interés y FOMC</span>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-white border border-[#E7E2D8] space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800">🔔 Cierre & Balance</span>
+                      <span className="font-mono text-emerald-800 font-bold">22:00 CET</span>
+                    </div>
+                    <span className="text-slate-500 block text-[9px]">Cierre diario y consolidación contable</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 24/7 Autonomous Cloud Cron (GitHub Actions) */}
+              <div className="p-3 rounded-xl bg-slate-900 text-white space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span className="text-xs font-bold text-white">
+                      🤖 Cron Autónomo 24/7 en la Nube (GitHub)
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/50">
+                    Móvil apagado OK
+                  </span>
+                </div>
+                
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Para que se envíe solo <strong>mientras estás trabajando o durmiendo</strong>, ya tienes programado el Cron en tu repositorio de GitHub (09:00, 15:30, 20:00 y 22:00 CET de Lunes a Viernes).
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setShowCronGuide(!showCronGuide)}
+                  className="text-[11px] text-emerald-400 hover:text-emerald-300 underline font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>{showCronGuide ? 'Ocultar guía de activación' : '¿Cómo activarlo en GitHub en 1 minuto?'}</span>
+                </button>
+
+                {showCronGuide && (
+                  <div className="p-2.5 rounded-lg bg-slate-800 text-slate-200 text-[11px] space-y-2 border border-slate-700">
+                    <p className="font-semibold text-white">Solo necesitas añadir tu Bot Token en GitHub:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-slate-300 text-[10.5px]">
+                      <li>Abre tu repositorio en <strong>GitHub</strong> en el navegador.</li>
+                      <li>Toca en <strong>Settings</strong> ➔ <strong>Secrets and variables</strong> ➔ <strong>Actions</strong>.</li>
+                      <li>Pulsa el botón verde <strong>New repository secret</strong>.</li>
+                      <li>Nombre: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-emerald-300 font-mono">TELEGRAM_BOT_TOKEN</code></li>
+                      <li>Valor: Pega tu Bot Token de @BotFather (ej. <code className="text-slate-400">{customBotToken ? customBotToken.slice(0, 15) + '...' : '7123456...'}</code>).</li>
+                      <li>¡Listo! Tu Chat ID (<code className="text-emerald-300">-1004499299168</code>) ya quedó preconfigurado por defecto en el código.</li>
+                    </ol>
+                    <p className="text-slate-400 italic text-[10px]">
+                      A partir de ese momento, los servidores de GitHub despacharán automáticamente los mensajes por separado a las 4 horas de mercado aunque no toques la app.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

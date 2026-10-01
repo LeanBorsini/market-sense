@@ -1,18 +1,22 @@
-name: MarketSense Daily Briefing 24/7
+name: MarketSense Autonomous Telegram Cron 24/7
 
 on:
   schedule:
-    # 08:00 AM Dublín (UTC) todos los días laborales
-    - cron: '0 8 * * 1-5'
-    # 21:00 PM Dublín (UTC) cierre de Wall Street
-    - cron: '0 21 * * 1-5'
-  workflow_dispatch: # Permite pulsar "Run workflow" manualmente desde GitHub
+    # 07:00 UTC = 09:00 CET / 08:00 Dublín (Apertura Europa & Madrid BME)
+    - cron: '0 7 * * 1-5'
+    # 13:30 UTC = 15:30 CET / 09:30 Nueva York (Apertura Wall Street)
+    - cron: '30 13 * * 1-5'
+    # 18:00 UTC = 20:00 CET / 14:00 Nueva York (Ventana FED / Powell / Tipos)
+    - cron: '0 18 * * 1-5'
+    # 20:00 UTC = 22:00 CET / 16:00 Nueva York (Cierre Wall St & Resumen Diario)
+    - cron: '0 20 * * 1-5'
+  workflow_dispatch: # Permite pulsar "Run workflow" manualmente en GitHub cuando quieras
 
 jobs:
   send-briefing:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout del código
+      - name: Checkout del repositorio
         uses: actions/checkout@v4
 
       - name: Instalar Node.js
@@ -20,8 +24,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: Ejecutar script de despacho a Telegram
+      - name: Despachar a Telegram por separado
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '-1004499299168' }}
         run: node scripts/telegram_cron_briefing.js

@@ -140,6 +140,58 @@ export default function App() {
   const [telegramStatusNotice, setTelegramStatusNotice] = useState<string | null>(null);
   const [isSendingTelegram, setIsSendingTelegram] = useState(false);
   const [showBotGuide, setShowBotGuide] = useState(false);
+  const [isDetectingChatId, setIsDetectingChatId] = useState(false);
+  const [detectStatus, setDetectStatus] = useState<string | null>(null);
+
+  // Auto-detect Telegram Group or Channel Chat ID via getUpdates
+  const detectChatIdAutomatically = async () => {
+    if (!customBotToken.trim()) {
+      setDetectStatus('⚠️ Primero pega tu Bot Token arriba.');
+      return;
+    }
+    setIsDetectingChatId(true);
+    setDetectStatus(null);
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${customBotToken.trim()}/getUpdates`);
+      const data = await res.json();
+      if (!data.ok) {
+        setDetectStatus(`❌ Error del bot: ${data.description}`);
+        return;
+      }
+      
+      const updates = data.result || [];
+      if (updates.length === 0) {
+        setDetectStatus('💡 El bot no ha detectado mensajes recientes. Entra a tu grupo en Telegram (Market_sense), escribe cualquier palabra (ej. "hola") y vuelve a pulsar este botón.');
+        return;
+      }
+
+      // Search updates in reverse to find the most recent chat ID
+      let foundChatId: string | null = null;
+      let foundTitle: string = '';
+
+      for (let i = updates.length - 1; i >= 0; i--) {
+        const u = updates[i];
+        const chat = u.message?.chat || u.my_chat_member?.chat || u.channel_post?.chat;
+        if (chat && chat.id) {
+          foundChatId = String(chat.id);
+          foundTitle = chat.title || chat.username || chat.first_name || 'Grupo';
+          break;
+        }
+      }
+
+      if (foundChatId) {
+        setCustomChatId(foundChatId);
+        localStorage.setItem('marketsense_tg_chatid', foundChatId);
+        setDetectStatus(`✅ ¡Detectado con éxito! Grupo: "${foundTitle}" (ID: ${foundChatId}). Ya puedes pulsar Guardar y Enviar.`);
+      } else {
+        setDetectStatus('💡 Escribe un mensaje de prueba (ej. "hola") dentro de tu grupo de Telegram y vuelve a pulsar.');
+      }
+    } catch (err: any) {
+      setDetectStatus(`❌ Error de conexión: ${err.message || 'Verifica tu red'}`);
+    } finally {
+      setIsDetectingChatId(false);
+    }
+  };
 
   // Dynamic Clock State (Default: device local time, with 1-click toggle to Wall St & Europe)
   type ClockMode = 'local' | 'ny' | 'dublin';
@@ -373,7 +425,7 @@ export default function App() {
       } else {
         let errDesc = data.description || 'Revisa tu Token o permisos';
         if (errDesc.includes('chat not found')) {
-          errDesc = `Canal o Chat no encontrado (${customChatId}). Verifica el nombre.`;
+          errDesc = `Chat no encontrado. En grupos privados ("${customChatId}") Telegram no acepta el nombre escrito; requiere su ID numérico (ej. -100...). Entra en ajustes ⚙️ y pulsa "Detectar ID de mi Grupo".`;
         } else if (errDesc.includes('bot is not a member') || errDesc.includes('not enough rights')) {
           errDesc = `Falta hacer Administrador a tu bot en ${customChatId} para que pueda publicar.`;
         }
@@ -1229,16 +1281,58 @@ export default function App() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-600 font-semibold block mb-1">
-                  Chat ID o @NombreCanal
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-slate-700 font-semibold block">
+                    Chat ID (o @NombreCanal)
+                  </label>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    Grupos: requiere ID numérico
+                  </span>
+                </div>
                 <input
                   type="text"
-                  placeholder="ej. @ColegasInversores o tu ID numérico"
+                  placeholder="ej. -1002345678901 o @TuCanal"
                   value={customChatId}
                   onChange={(e) => setCustomChatId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-white border border-[#DDD8CD] text-[#191C21] font-mono text-xs focus:outline-none focus:border-emerald-700"
                 />
+
+                {/* Auto-detect button for groups */}
+                <div className="mt-2 p-2.5 rounded-xl bg-[#F5F2EB] border border-[#DDD8CD] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-slate-800">
+                      ¿Tienes un Grupo como "Market_sense"?
+                    </span>
+                    <button
+                      type="button"
+                      onClick={detectChatIdAutomatically}
+                      disabled={isDetectingChatId}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-[11px] transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      {isDetectingChatId ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          <span>Buscando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-3 h-3" />
+                          <span>🔍 Detectar ID de mi Grupo</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    Telegram no permite usar el título del grupo ("Market_sense") para enviar mensajes por bot; requiere su <strong>Chat ID numérico</strong> (que empieza por un guion negativo, ej. <code>-100...</code>).
+                    <br />
+                    👉 <em>Escribe una palabra en tu grupo (ej. "hola") y luego toca el botón verde para que se rellene solo.</em>
+                  </p>
+                  {detectStatus && (
+                    <div className="text-[11px] p-2 rounded-lg bg-white border border-[#DDD8CD] leading-snug">
+                      {detectStatus}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

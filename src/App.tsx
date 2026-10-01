@@ -867,7 +867,7 @@ export default function App() {
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                               <Sparkles className="w-4 h-4 text-emerald-600" />
-                              Asistente IA para {cause.ticker} (Capa Gratuita · 0€/mes)
+                              Consultor IA Fundamental: {cause.ticker}
                             </span>
                             <button
                               onClick={() => setOpenAIConsultantTicker(openAIConsultantTicker === ticker ? null : ticker)}

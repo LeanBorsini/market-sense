@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Send, Bot, User, Key, CheckCircle, RefreshCw, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Send, Bot, User, RefreshCw } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { MovementCause } from '../data/marketSignals';
 
@@ -15,7 +15,7 @@ interface ChatMessage {
   timestamp: string;
 }
 
-export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause, onClose }) => {
+export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: 'welcome',
@@ -27,11 +27,11 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause, o
 
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [geminiApiKey, setGeminiApiKey] = useState<string>(() => {
-    return localStorage.getItem('marketsense_gemini_api_key') || '';
-  });
-  const [showKeyConfig, setShowKeyConfig] = useState(false);
-  const [savedKeyNotice, setSavedKeyNotice] = useState(false);
+
+  // Discreetly read API key from environment variable or existing local storage if present (completely invisible in UI)
+  const geminiApiKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
+    localStorage.getItem('marketsense_gemini_api_key') ||
+    '';
 
   // Preset question shortcuts
   const suggestedQuestions = [
@@ -40,16 +40,6 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause, o
     `¿Qué riesgos reales debo vigilar en su balance?`,
     `Explícame la previsión a corto y medio plazo en lenguaje sencillo`
   ];
-
-  const handleSaveApiKey = (key: string) => {
-    setGeminiApiKey(key.trim());
-    localStorage.setItem('marketsense_gemini_api_key', key.trim());
-    setSavedKeyNotice(true);
-    setTimeout(() => {
-      setSavedKeyNotice(false);
-      setShowKeyConfig(false);
-    }, 1500);
-  };
 
   // Generate contextual response
   const generateResponse = async (userPrompt: string) => {
@@ -65,7 +55,7 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause, o
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
 
-    // If user has configured their free Gemini API Key, use real-time Gemini 3.8 Flash model
+    // If API key is available, use real-time Gemini model silently
     if (geminiApiKey) {
       try {
         const ai = new GoogleGenAI({ apiKey: geminiApiKey });
@@ -110,12 +100,11 @@ Instrucciones:
         setIsLoading(false);
         return;
       } catch (err: any) {
-        console.error('Gemini API Error:', err);
-        // Fallback to internal fundamental reasoning
+        console.error('Gemini error, fallback to analytical engine:', err);
       }
     }
 
-    // Built-in intelligent reasoning engine (works 100% free offline without API key)
+    // Built-in intelligent reasoning engine (100% self-contained, clean and instant)
     setTimeout(() => {
       let reply = '';
       const q = userPrompt.toLowerCase();
@@ -143,8 +132,7 @@ Instrucciones:
           `Para evaluar esta duda, lo esencial es contrastar si afecta a los ingresos reales o solo al precio de la acción hoy.\n\n` +
           `• **Situación actual:** ${cause.rootCause}\n` +
           `• **Generación de caja:** ${cause.cashFlowImpact}\n` +
-          `• **Recomendación:** ${cause.verdict}\n\n` +
-          `*(Consejo: Puedes añadir tu clave gratuita de Google Gemini en la ruedita superior si deseas análisis en tiempo real de cualquier noticia específica).*`;
+          `• **Recomendación:** ${cause.verdict}`;
       }
 
       setMessages(prev => [
@@ -157,7 +145,7 @@ Instrucciones:
         }
       ]);
       setIsLoading(false);
-    }, 600);
+    }, 500);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -169,69 +157,25 @@ Instrucciones:
   };
 
   return (
-    <div className="rounded-xl border border-emerald-300 bg-white p-4 space-y-3.5 shadow-sm">
-      {/* Header */}
+    <div className="rounded-xl border border-emerald-200 bg-white p-4 space-y-3.5 shadow-xs">
+      {/* Header - Clean, professional, no keys or token configuration visible */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center shadow-xs">
             <Bot className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-xs text-[#191C21]">Consultor IA: {cause.ticker}</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-semibold">
-                {geminiApiKey ? 'Gemini 3.8 Flash' : 'Motor Fundamental'}
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                Analista en línea
               </span>
             </div>
-            <p className="text-[11px] text-slate-500">Pregúntale cualquier duda sobre noticias, deuda o ruido</p>
+            <p className="text-[11px] text-slate-500">Pregúntale cualquier duda sobre noticias, deuda, contratos o balance</p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setShowKeyConfig(!showKeyConfig)}
-            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs flex items-center gap-1 transition"
-            title="Configurar Clave Gratuita de Google Gemini (0€/mes)"
-          >
-            <Key className="w-3.5 h-3.5" />
-            <span className="text-[10px] hidden sm:inline">{geminiApiKey ? 'API Conectada' : 'Activar Gemini'}</span>
-          </button>
         </div>
       </div>
-
-      {/* API Key Drawer (Optional for Free Unlimited Live Gemini 3.8 Flash) */}
-      {showKeyConfig && (
-        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <strong className="text-amber-900 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-              Capa Gratuita de Google Gemini (0 €/mes)
-            </strong>
-            <span className="text-[10px] text-amber-700 font-semibold">1.500 consultas gratis/día</span>
-          </div>
-          <p className="text-slate-600 text-[11px] leading-relaxed">
-            Puedes sacar tu clave gratuita en 10 segundos en <strong>aistudio.google.com</strong>. Se guarda solo en tu móvil/navegador. Si la dejas vacía, la app responderá usando el motor contable integrado.
-          </p>
-          <div className="flex items-center gap-2">
-            <input
-              type="password"
-              placeholder="Pega tu API Key de Gemini (AIzaSy...)"
-              defaultValue={geminiApiKey}
-              id="gemini-key-input"
-              className="flex-1 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 text-xs font-mono focus:outline-none focus:border-emerald-600"
-            />
-            <button
-              onClick={() => {
-                const el = document.getElementById('gemini-key-input') as HTMLInputElement;
-                if (el) handleSaveApiKey(el.value);
-              }}
-              className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs transition"
-            >
-              {savedKeyNotice ? '¡Guardada!' : 'Guardar'}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Chat Messages Log */}
       <div className="max-h-72 overflow-y-auto space-y-2.5 pr-1 text-xs">
@@ -272,7 +216,7 @@ Instrucciones:
         {isLoading && (
           <div className="flex items-center gap-2 text-slate-500 text-xs py-1">
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-700" />
-            <span>Analizando balance y noticias para {cause.ticker}...</span>
+            <span>Consultando datos contables y noticias de {cause.ticker}...</span>
           </div>
         )}
       </div>
@@ -280,7 +224,7 @@ Instrucciones:
       {/* Suggested Quick Questions */}
       <div className="space-y-1 pt-1 border-t border-slate-100">
         <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
-          Preguntas Rápidas:
+          Preguntas Sugeridas:
         </span>
         <div className="flex flex-wrap gap-1.5">
           {suggestedQuestions.map((q, idx) => (
@@ -288,7 +232,7 @@ Instrucciones:
               key={idx}
               onClick={() => generateResponse(q)}
               disabled={isLoading}
-              className="px-2.5 py-1 rounded-lg bg-[#FAF8F5] hover:bg-emerald-50 hover:text-emerald-900 border border-[#E7E2D8] text-[11px] text-slate-600 transition text-left"
+              className="px-2.5 py-1 rounded-lg bg-[#FAF8F5] hover:bg-emerald-50 hover:text-emerald-900 border border-[#E7E2D8] text-[11px] text-slate-600 transition text-left cursor-pointer active:scale-98"
             >
               {q}
             </button>
@@ -300,7 +244,7 @@ Instrucciones:
       <form onSubmit={handleSubmit} className="relative flex items-center pt-1">
         <input
           type="text"
-          placeholder={`Escribe tu duda sobre ${cause.ticker} (ej. ¿Qué pasa con los avales?)...`}
+          placeholder={`Escribe tu consulta sobre ${cause.ticker} (ej. ¿Qué pasa con los avales?)...`}
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
           disabled={isLoading}
@@ -309,7 +253,8 @@ Instrucciones:
         <button
           type="submit"
           disabled={isLoading || !inputQuery.trim()}
-          className="absolute right-1.5 p-1.5 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-40 transition"
+          className="absolute right-1.5 p-1.5 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-40 transition cursor-pointer"
+          title="Enviar consulta"
         >
           <Send className="w-3.5 h-3.5" />
         </button>

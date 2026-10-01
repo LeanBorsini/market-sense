@@ -42,6 +42,7 @@ import {
   MovementCause,
   HorizonOutlook 
 } from './data/marketSignals';
+import { TickerAIConsultant } from './components/TickerAIConsultant';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { useAuth } from './context/AuthContext';
 
@@ -93,6 +94,30 @@ export default function App() {
 
   // Accordion state: which ticker is currently expanded (null = none)
   const [expandedTicker, setExpandedTicker] = useState<string | null>('OHLA');
+
+  // AI Consultant state per ticker (which ticker has the AI consultant open)
+  const [openAIConsultantTicker, setOpenAIConsultantTicker] = useState<string | null>('OHLA');
+
+  // Custom user prices synced with live TradingView
+  const [customPrices, setCustomPrices] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('marketsense_custom_prices');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return {};
+  });
+  const [editingPriceTicker, setEditingPriceTicker] = useState<string | null>(null);
+  const [editingPriceVal, setEditingPriceVal] = useState<string>('');
+
+  const handleSaveCustomPrice = (ticker: string) => {
+    if (!editingPriceVal.trim()) return;
+    const updated = { ...customPrices, [ticker]: editingPriceVal.trim() };
+    setCustomPrices(updated);
+    localStorage.setItem('marketsense_custom_prices', JSON.stringify(updated));
+    setEditingPriceTicker(null);
+  };
 
   // Universal Search & Auditor for ANY ticker in the world
   const [searchQuery, setSearchQuery] = useState('');
@@ -595,7 +620,7 @@ export default function App() {
                       <div className="flex items-center gap-3 sm:gap-4 shrink-0">
                         <div className="text-right">
                           <span className="font-bold text-sm text-[#191C21] font-mono block">
-                            {cause.price}
+                            {customPrices[ticker] || cause.price}
                           </span>
                           <span className={`text-xs font-mono font-semibold ${
                             cause.isPositive ? 'text-emerald-700' : 'text-rose-700'
@@ -615,8 +640,8 @@ export default function App() {
                     {isExpanded && (
                       <div className="border-t border-[#EFECE4] bg-[#FDFCF9] p-4 sm:p-6 space-y-4 animate-fadeIn">
                         
-                        {/* Asset Identity Full Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#EFECE4]">
+                        {/* Asset Identity Full Header with TradingView Symbol & Live Price Tools */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#EFECE4]">
                           <div>
                             <div className="flex items-center gap-2">
                               <h3 className="text-lg font-bold text-[#191C21] font-mono">
@@ -626,18 +651,78 @@ export default function App() {
                                 {cause.name}
                               </span>
                             </div>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              Precio de mercado: <strong className="text-[#191C21] font-mono">{cause.price}</strong>
-                              <span className={`ml-1.5 font-mono font-bold ${cause.isPositive ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                ({cause.change})
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
+                              <span>
+                                Cotización: <strong className="text-[#191C21] font-mono text-sm">{customPrices[ticker] || cause.price}</strong>
+                                <span className={`ml-1 font-mono font-bold ${cause.isPositive ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                  ({cause.change})
+                                </span>
                               </span>
-                            </p>
+                              <span>·</span>
+                              <span className="px-2 py-0.5 rounded bg-[#EFECE4] text-slate-700 font-mono text-[11px]">
+                                {cause.exchange} ({cause.tradingViewSymbol})
+                              </span>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* TradingView Direct Link */}
+                            <a
+                              href={`https://es.tradingview.com/chart/?symbol=${encodeURIComponent(cause.tradingViewSymbol)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-semibold transition flex items-center gap-1"
+                              title="Ver gráfico en tiempo real en TradingView"
+                            >
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                              <span>TradingView</span>
+                            </a>
+
+                            {/* Adjust Price Button */}
+                            <button
+                              onClick={() => {
+                                setEditingPriceTicker(ticker);
+                                setEditingPriceVal(customPrices[ticker] || cause.price);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-[#FAF8F5] hover:bg-slate-100 text-slate-700 border border-[#DDD8CD] text-xs font-semibold transition"
+                              title="Ajustar precio manualmente"
+                            >
+                              ✏️ Ajustar
+                            </button>
+
                             {getTrafficLightBadge(cause.trafficLight)}
                           </div>
                         </div>
+
+                        {/* Inline Price Editor Drawer */}
+                        {editingPriceTicker === ticker && (
+                          <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-300 text-xs space-y-2 animate-fadeIn">
+                            <span className="font-semibold text-amber-900 block">
+                              Ajustar cotización de {cause.ticker} según tu TradingView / Broker:
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={editingPriceVal}
+                                onChange={(e) => setEditingPriceVal(e.target.value)}
+                                placeholder="ej. 0.3610 € o $584.50"
+                                className="px-3 py-1.5 rounded-lg bg-white border border-amber-300 font-mono text-xs focus:outline-none focus:border-emerald-600"
+                              />
+                              <button
+                                onClick={() => handleSaveCustomPrice(ticker)}
+                                className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold transition"
+                              >
+                                Guardar Precio
+                              </button>
+                              <button
+                                onClick={() => setEditingPriceTicker(null)}
+                                className="px-2 py-1.5 text-slate-500 hover:text-slate-800"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Traffic light reason header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-[#F5F2EB] border border-[#E7E2D8]">
@@ -725,10 +810,35 @@ export default function App() {
                           </div>
                         </div>
 
+                        {/* 5. INTERACTIVE AI CHATBOT CONSULTANT */}
+                        <div className="pt-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                              <Sparkles className="w-4 h-4 text-emerald-600" />
+                              Asistente IA para {cause.ticker} (Capa Gratuita · 0€/mes)
+                            </span>
+                            <button
+                              onClick={() => setOpenAIConsultantTicker(openAIConsultantTicker === ticker ? null : ticker)}
+                              className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 transition"
+                            >
+                              {openAIConsultantTicker === ticker ? 'Ocultar Chat' : 'Abrir Chat con la IA'}
+                            </button>
+                          </div>
+
+                          {openAIConsultantTicker === ticker && (
+                            <TickerAIConsultant
+                              cause={{
+                                ...cause,
+                                price: customPrices[ticker] || cause.price
+                              }}
+                            />
+                          )}
+                        </div>
+
                         {/* Actions for this item */}
                         <div className="flex items-center justify-between pt-2 border-t border-[#EFECE4] text-xs">
                           <span className="text-slate-400 text-[11px]">
-                            Ticker: {cause.ticker} en cartera activa
+                            Ticker: {cause.ticker} · {cause.exchange}
                           </span>
 
                           <button

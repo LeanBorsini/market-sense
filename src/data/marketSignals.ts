@@ -12,6 +12,8 @@ export interface MovementCause {
   price: string;
   change: string;
   isPositive: boolean;
+  tradingViewSymbol: string;
+  exchange: string;
   rootCause: string;
   classification: 'SEÑAL_FUNDAMENTAL' | 'RUIDO_DE_MERCADO' | 'ROTACIÓN_SECTORIAL';
   noiseExplanation: string;
@@ -60,14 +62,16 @@ export interface MarketGlobalPulse {
   strategicGuidance: string;
 }
 
-// 1. "EL POR QUÉ SE MUEVE" (Base de datos analítica de causa raíz vs ruido con previsiones)
+// 1. "EL POR QUÉ SE MUEVE" (Base de datos analítica sincronizada con símbolos reales de TradingView)
 export const WHY_IT_MOVES_DATA: Record<string, MovementCause> = {
   OHLA: {
     ticker: 'OHLA',
     name: 'OHLA · Obrascón Huarte Lain (Construcción & Obras)',
-    price: '0.3614 €',
+    price: '0.3610 €',
     change: '+1.69%',
     isPositive: true,
+    tradingViewSymbol: 'BME:OHLA',
+    exchange: 'Bolsa de Madrid (BME)',
     rootCause: 'Avance formal en el paquete de avales bancarios con las entidades acreedoras y entrada de capital de los inversores de referencia sin dilución penalizadora.',
     classification: 'SEÑAL_FUNDAMENTAL',
     noiseExplanation: 'Los altibajos diarios del 3-5% en intradía se deben a la baja liquidez típica de small caps en BME. No hay cancelación de obras ni pérdida de contratos.',
@@ -102,9 +106,11 @@ export const WHY_IT_MOVES_DATA: Record<string, MovementCause> = {
   VOO: {
     ticker: 'VOO',
     name: 'VOO · Vanguard S&P 500 ETF (EE.UU.)',
-    price: '$538.10',
+    price: '$584.50',
     change: '+0.54%',
     isPositive: true,
+    tradingViewSymbol: 'AMEX:VOO',
+    exchange: 'NYSE Arca / AMEX (EE.UU.)',
     rootCause: 'Los beneficios por acción (BPA) de las 500 mayores corporaciones de EE.UU. siguen batiendo expectativas con márgenes operativos sólidos (>12%).',
     classification: 'SEÑAL_FUNDAMENTAL',
     noiseExplanation: 'El ruido de la prensa sobre "burbuja o recesión inminente" carece de fundamento contable: los flujos de caja libre corporativos están en máximos históricos.',
@@ -139,9 +145,11 @@ export const WHY_IT_MOVES_DATA: Record<string, MovementCause> = {
   BTC: {
     ticker: 'BTC',
     name: 'BTC · Bitcoin (Reserva Digital)',
-    price: '$83,064.10',
+    price: '$83,850.00',
     change: '+2.85%',
     isPositive: true,
+    tradingViewSymbol: 'BINANCE:BTCUSDT',
+    exchange: 'Mercado Cripto Global (Spot)',
     rootCause: 'Entrada neta institucional continua a través de los ETF al contado de BlackRock y Fidelity, absorbiendo más del triple de los bitcoins emitidos diariamente tras el Halving.',
     classification: 'SEÑAL_FUNDAMENTAL',
     noiseExplanation: 'Las caídas súbitas del 4-6% suelen ser liquidaciones en cascada de contratos de futuros apalancados en exchanges de derivados, no venta de holders de largo plazo.',
@@ -176,9 +184,11 @@ export const WHY_IT_MOVES_DATA: Record<string, MovementCause> = {
   TSM: {
     ticker: 'TSM',
     name: 'TSM · Taiwan Semi (Chips & IA)',
-    price: '$189.50',
+    price: '$192.30',
     change: '+1.92%',
     isPositive: true,
+    tradingViewSymbol: 'NYSE:TSM',
+    exchange: 'NYSE (Nueva York - ADR)',
     rootCause: 'Tasa de utilización de las fábricas de nodos avanzados (3nm y 2nm) al 100% gracias a la demanda insaciable de chips para IA de Nvidia, Apple y AMD.',
     classification: 'SEÑAL_FUNDAMENTAL',
     noiseExplanation: 'El ruido geopolítico constante sobre Taiwán genera descuentos periódicos en la cotización, pero los clientes pagan por adelantado su capacidad.',
@@ -213,9 +223,11 @@ export const WHY_IT_MOVES_DATA: Record<string, MovementCause> = {
   SAN: {
     ticker: 'SAN',
     name: 'SAN · Banco Santander (Banca)',
-    price: '4.62 €',
+    price: '4.645 €',
     change: '+0.88%',
     isPositive: true,
+    tradingViewSymbol: 'BME:SAN',
+    exchange: 'Bolsa de Madrid (BME)',
     rootCause: 'Margen de intereses resistente en España y Reino Unido junto con un ratio de capital CET1 por encima del 12.5% y recompras masivas de acciones.',
     classification: 'SEÑAL_FUNDAMENTAL',
     noiseExplanation: 'El temor a que las bajadas de tipos del BCE hundan el beneficio se compensa con el aumento del volumen de créditos y menores provisiones.',
@@ -250,9 +262,11 @@ export const WHY_IT_MOVES_DATA: Record<string, MovementCause> = {
   REP: {
     ticker: 'REP',
     name: 'REP · Repsol (Energía & Petróleo)',
-    price: '11.85 €',
+    price: '11.88 €',
     change: '-0.74%',
     isPositive: false,
+    tradingViewSymbol: 'BME:REP',
+    exchange: 'Bolsa de Madrid (BME)',
     rootCause: 'Normalización de los márgenes de refino en Europa tras los picos del año anterior y cotización del Brent en banda 72-78$.',
     classification: 'ROTACIÓN_SECTORIAL',
     noiseExplanation: 'El castigo del mercado penaliza a todo el sector energético sin distinguir que Repsol tiene una deuda neta insignificante y recompra el 8% de sus títulos.',
@@ -435,6 +449,8 @@ export function auditTickerFundamentals(query: string): MovementCause {
     price: 'En consulta',
     change: '+0.40%',
     isPositive: true,
+    tradingViewSymbol: upper.includes(':') ? upper : `BME:${upper}`,
+    exchange: 'Bolsa de Valores',
     rootCause: `Auditoría contable para ${upper}: El activo se mueve principalmente por expectativas de beneficios trimestrales y la sensibilidad a la curva de tipos de su sector.`,
     classification: 'SEÑAL_FUNDAMENTAL',
     noiseExplanation: 'El 80% de la oscilación intradía refleja arbitraje de fondos algorítmicos. No se observan alertas de insolvencia ni diluciones no comunicadas.',

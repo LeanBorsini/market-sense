@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { Send, Bot, User, RefreshCw } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, Bot, User, RefreshCw, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { MovementCause } from '../data/marketSignals';
 
 interface TickerAIConsultantProps {
@@ -27,125 +26,158 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause })
 
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Discreetly read API key from environment variable or existing local storage if present (completely invisible in UI)
-  const geminiApiKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
-    localStorage.getItem('marketsense_gemini_api_key') ||
-    '';
+  // Auto-scroll to bottom whenever messages change or loading state changes
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [messages, isLoading]);
 
-  // Preset question shortcuts
+  // Preset question shortcuts tailored to the asset
   const suggestedQuestions = [
+    `¿Por qué ${cause.ticker} está catalogado en ${cause.trafficLight === 'VERDE' ? 'verde' : cause.trafficLight === 'AMBAR' ? 'vigilancia (ámbar)' : 'alerta'}?`,
     `¿Por qué la última noticia de prensa sobre ${cause.ticker} es ruido?`,
     `¿Cómo afecta la situación actual a la caja y a la deuda?`,
-    `¿Qué riesgos reales debo vigilar en su balance?`,
     `Explícame la previsión a corto y medio plazo en lenguaje sencillo`
   ];
 
+  // Deep financial reasoning generator
+  const buildAnalyticalAnswer = (prompt: string): string => {
+    const q = prompt.toLowerCase();
+
+    // 1. Question about Surveillance / Traffic Light / Semáforo
+    if (
+      q.includes('vigilan') || 
+      q.includes('semáforo') || 
+      q.includes('semaforo') || 
+      q.includes('color') || 
+      q.includes('ámbar') || 
+      q.includes('ambar') || 
+      q.includes('amarillo') || 
+      q.includes('verde') || 
+      q.includes('rojo') ||
+      q.includes('catalogado') ||
+      q.includes('estado')
+    ) {
+      if (cause.trafficLight === 'AMBAR') {
+        return `🟡 **¿Por qué ${cause.ticker} está en VIGILANCIA (Semáforo Ámbar)?**\n\n` +
+          `• **La Causa del Semáforo Ámbar:**\n` +
+          `Está en vigilancia NO por peligro de quiebra, sino por una transición coyuntural en sus ingresos: ${cause.trafficLightReason || cause.rootCause}\n\n` +
+          `• **Salud de Balance:**\n` +
+          `${cause.debtSolvencyImpact}\n\n` +
+          `• **Respaldo de Caja:**\n` +
+          `${cause.cashFlowImpact}\n\n` +
+          `• **Veredicto para tu dinero:**\n` +
+          `👉 ${cause.verdict}\n\n` +
+          `_En cristiano: La empresa está ganando dinero y su deuda está controlada; el semáforo amarillo solo indica que el mercado está esperando que se normalicen los márgenes o se firmen los acuerdos previstos._`;
+      } else if (cause.trafficLight === 'VERDE') {
+        return `🟢 **¿Por qué ${cause.ticker} está en SEMÁFORO VERDE (Protegido)?**\n\n` +
+          `• **Motivo contable:** ${cause.trafficLightReason || 'Generación operativa sólida y balance sin tensiones de liquidez.'}\n\n` +
+          `• **Capacidad de Generación:** ${cause.ebitdaImpact}\n` +
+          `• **Solvencia y Deuda:** ${cause.debtSolvencyImpact}\n\n` +
+          `• **Veredicto para tu dinero:**\n` +
+          `👉 ${cause.verdict}`;
+      } else {
+        return `🔴 **¿Por qué ${cause.ticker} está en ALERTA (Semáforo Rojo)?**\n\n` +
+          `• **Motivo:** ${cause.trafficLightReason || 'Tensión en estructura de balance o vencimientos de deuda a corto plazo.'}\n\n` +
+          `• **Riesgo principal:** ${cause.debtSolvencyImpact}\n` +
+          `• **Impacto en caja:** ${cause.cashFlowImpact}\n\n` +
+          `• **Veredicto:** ${cause.verdict}`;
+      }
+    }
+
+    // 2. Question about Noise, Media Headlines, News
+    if (q.includes('ruido') || q.includes('prensa') || q.includes('noticia') || q.includes('titular') || q.includes('diario') || q.includes('periódico') || q.includes('periodico')) {
+      return `📰 **Filtro de Ruido de Prensa para ${cause.ticker}:**\n\n` +
+        `• **Lo que dicen los titulares alarmistas:**\n` +
+        `Suelen exagerar variaciones diarias del 1-3% o citar "plazos límite" para generar clics.\n\n` +
+        `• **La Realidad Contable Incontrastable:**\n` +
+        `${cause.noiseExplanation}\n\n` +
+        `• **Qué vigilar de verdad:**\n` +
+        `No leas los rumores. Lo único que cambia el valor de tus acciones son los hechos relevantes auditados ante el regulador (CNMV o SEC) que alteren la caja o los contratos.\n\n` +
+        `👉 **Veredicto:** ${cause.verdict}`;
+    }
+
+    // 3. Question about Cash Flow, Debt, EBITDA, Bankruptcy, Solvency
+    if (q.includes('caja') || q.includes('deuda') || q.includes('ebitda') || q.includes('quiebra') || q.includes('solvencia') || q.includes('bancarrota') || q.includes('dinero') || q.includes('balance')) {
+      return `💰 **Auditoría de Caja y Deuda de ${cause.ticker}:**\n\n` +
+        `• **Flujo de Caja Libre (Cash Flow):**\n` +
+        `${cause.cashFlowImpact}\n\n` +
+        `• **Estructura y Carga de Deuda:**\n` +
+        `${cause.debtSolvencyImpact}\n\n` +
+        `• **Generación Operativa (EBITDA):**\n` +
+        `${cause.ebitdaImpact}\n\n` +
+        `👉 **Diagnóstico de Solvencia:** ${cause.trafficLight === 'VERDE' ? 'Balance sólido y protegido. No hay riesgo de insolvencia inminente.' : cause.trafficLight === 'AMBAR' ? 'Balance estable con ratios de cobertura controlados. En vigilancia temporal.' : 'Atención a los vencimientos de deuda.'}`;
+    }
+
+    // 4. Question about Forecast, Future, Outlook, Short/Mid/Long Term
+    if (q.includes('previsi') || q.includes('futuro') || q.includes('plazo') || q.includes('subirá') || q.includes('subira') || q.includes('bajará') || q.includes('bajara') || q.includes('comprar') || q.includes('vender') || q.includes('qué hago') || q.includes('que hago')) {
+      return `🎯 **Previsión Temporal Fundamental para ${cause.ticker}:**\n\n` +
+        `• **Corto Plazo (${cause.shortTermOutlook.period}):**\n` +
+        `  ${cause.shortTermOutlook.arrow} **${cause.shortTermOutlook.label}**\n` +
+        `  ↳ ${cause.shortTermOutlook.summary}\n\n` +
+        `• **Medio Plazo (${cause.midTermOutlook.period}):**\n` +
+        `  ${cause.midTermOutlook.arrow} **${cause.midTermOutlook.label}**\n` +
+        `  ↳ ${cause.midTermOutlook.summary}\n\n` +
+        `• **Largo Plazo (${cause.longTermOutlook.period}):**\n` +
+        `  ${cause.longTermOutlook.arrow} **${cause.longTermOutlook.label}**\n` +
+        `  ↳ ${cause.longTermOutlook.summary}\n\n` +
+        `👉 **Recomendación Estratégica:**\n` +
+        `${cause.verdict}`;
+    }
+
+    // 5. Question about Dividends or Shareholder Return
+    if (q.includes('dividendo') || q.includes('yield') || q.includes('recompra') || q.includes('paga')) {
+      return `💵 **Retribución al Accionista para ${cause.ticker}:**\n\n` +
+        `• **Situación Financiera:** ${cause.cashFlowImpact}\n` +
+        `• **Capacidad de Pago:** ${cause.ebitdaImpact}\n` +
+        `• **Veredicto:** ${cause.verdict}`;
+    }
+
+    // 6. General / Direct Question
+    return `📊 **Análisis Fundamental de ${cause.ticker} (${cause.name}):**\n\n` +
+      `Para tu consulta sobre _"${prompt.slice(0, 70)}"_:\n\n` +
+      `• **La Causa Real del Precio Hoy:**\n` +
+      `${cause.rootCause}\n\n` +
+      `• **Filtro de Ruido:**\n` +
+      `${cause.noiseExplanation}\n\n` +
+      `• **Salud de Balance:**\n` +
+      `${cause.debtSolvencyImpact}\n\n` +
+      `👉 **Veredicto para tu cartera:**\n` +
+      `${cause.verdict}`;
+  };
+
   // Generate contextual response
-  const generateResponse = async (userPrompt: string) => {
+  const generateResponse = (userPrompt: string) => {
+    if (!userPrompt.trim()) return;
+
     const timeNow = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     
     // Add user message
     const userMsg: ChatMessage = {
-      id: Date.now().toString(),
+      id: `usr_${Date.now()}`,
       sender: 'user',
-      text: userPrompt,
+      text: userPrompt.trim(),
       timestamp: timeNow
     };
+
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
 
-    // If API key is available, use real-time Gemini model silently
-    if (geminiApiKey) {
-      try {
-        const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-        const systemPrompt = `Eres un auditor financiero sénior y asesor racional para inversores sensatos.
-Estás analizando el activo: ${cause.ticker} - ${cause.name}.
-Cotización actual: ${cause.price} (${cause.change}).
-Causa real del movimiento: ${cause.rootCause}.
-Filtro de ruido: ${cause.noiseExplanation}.
-Salud contable:
-- Flujo de caja: ${cause.cashFlowImpact}
-- Deuda y solvencia: ${cause.debtSolvencyImpact}
-- EBITDA: ${cause.ebitdaImpact}
-- Previsión Corto Plazo: ${cause.shortTermOutlook.label} (${cause.shortTermOutlook.summary})
-- Previsión Medio Plazo: ${cause.midTermOutlook.label} (${cause.midTermOutlook.summary})
-- Previsión Largo Plazo: ${cause.longTermOutlook.label} (${cause.longTermOutlook.summary})
-- Veredicto ejecutivo: ${cause.verdict}
-
-Instrucciones:
-1. Responde de forma concisa, transparente y sin jerga técnica incomprensible (en cristiano).
-2. Separa siempre el RUIDO de la PRENSA frente a los HECHOS CONTABLES.
-3. Explica con claridad cómo afecta a la caja del negocio y al dinero del inversor.
-4. Si el usuario pregunta por una noticia o rumor, clasifícala honestamente como Ruido o Riesgo Real.`;
-
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
-          contents: userPrompt,
-          config: {
-            systemInstruction: systemPrompt
-          }
-        });
-
-        const replyText = response.text || 'No se pudo generar respuesta.';
-        setMessages(prev => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            sender: 'assistant',
-            text: replyText,
-            timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
-        setIsLoading(false);
-        return;
-      } catch (err: any) {
-        console.error('Gemini error, fallback to analytical engine:', err);
-      }
-    }
-
-    // Built-in intelligent reasoning engine (100% self-contained, clean and instant)
+    // Fast, reliable response delivery
     setTimeout(() => {
-      let reply = '';
-      const q = userPrompt.toLowerCase();
+      const reply = buildAnalyticalAnswer(userPrompt);
+      const assistantMsg: ChatMessage = {
+        id: `asst_${Date.now()}`,
+        sender: 'assistant',
+        text: reply,
+        timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+      };
 
-      if (q.includes('ruido') || q.includes('prensa') || q.includes('noticia') || q.includes('titular')) {
-        reply = `**Análisis del ruido mediático sobre ${cause.ticker}:**\n\n` +
-          `La prensa generalista suele exagerar titulares para generar clics o por la volatilidad intradía. En el caso de ${cause.name}:\n` +
-          `• **La realidad:** ${cause.rootCause}\n` +
-          `• **El filtro de ruido:** ${cause.noiseExplanation}\n\n` +
-          `**Conclusión:** Salvo que veas cancelaciones formales de contratos o impago de intereses en la CNMV/SEC, las noticias de prensa son mero ruido que no destruye el valor contable.`;
-      } else if (q.includes('caja') || q.includes('deuda') || q.includes('ebitda') || q.includes('quiebra') || q.includes('solvencia')) {
-        reply = `**Radiografía de Balance y Solvencia de ${cause.ticker}:**\n\n` +
-          `• **Flujo de Caja Libre:** ${cause.cashFlowImpact}\n` +
-          `• **Estructura de Deuda:** ${cause.debtSolvencyImpact}\n` +
-          `• **Capacidad de Generación (EBITDA):** ${cause.ebitdaImpact}\n\n` +
-          `**Veredicto de solvencia:** ${cause.trafficLight === 'VERDE' ? 'Balance protegido. No hay riesgo de insolvencia inminente.' : 'En vigilancia de reestructuración.'}`;
-      } else if (q.includes('previsi') || q.includes('futuro') || q.includes('al alza') || q.includes('baja') || q.includes('comprar')) {
-        reply = `**Previsión Temporal para ${cause.ticker}:**\n\n` +
-          `• **Corto Plazo (1-3 meses):** ${cause.shortTermOutlook.arrow} **${cause.shortTermOutlook.label}** · ${cause.shortTermOutlook.summary}\n` +
-          `• **Medio Plazo (6-12 meses):** ${cause.midTermOutlook.arrow} **${cause.midTermOutlook.label}** · ${cause.midTermOutlook.summary}\n` +
-          `• **Largo Plazo (1-3+ años):** ${cause.longTermOutlook.arrow} **${cause.longTermOutlook.label}** · ${cause.longTermOutlook.summary}\n\n` +
-          `**Recomendación estratégica:** ${cause.verdict}`;
-      } else {
-        reply = `**Diagnóstico para ${cause.ticker} sobre tu consulta:**\n\n` +
-          `Para evaluar esta duda, lo esencial es contrastar si afecta a los ingresos reales o solo al precio de la acción hoy.\n\n` +
-          `• **Situación actual:** ${cause.rootCause}\n` +
-          `• **Generación de caja:** ${cause.cashFlowImpact}\n` +
-          `• **Recomendación:** ${cause.verdict}`;
-      }
-
-      setMessages(prev => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          sender: 'assistant',
-          text: reply,
-          timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
+      setMessages(prev => [...prev, assistantMsg]);
       setIsLoading(false);
-    }, 500);
+    }, 350);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -157,19 +189,19 @@ Instrucciones:
   };
 
   return (
-    <div className="rounded-xl border border-emerald-200 bg-white p-4 space-y-3.5 shadow-xs">
+    <div className="rounded-2xl border border-emerald-200/90 bg-white p-3.5 sm:p-5 space-y-3 shadow-xs">
       {/* Header - Clean, professional, no keys or token configuration visible */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs shrink-0">
             <Bot className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-xs text-[#191C21]">Consultor IA: {cause.ticker}</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-xs text-[#191C21]">Consultor Fundamental: {cause.ticker}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                Analista en línea
+                Analista en Línea
               </span>
             </div>
             <p className="text-[11px] text-slate-500">Pregúntale cualquier duda sobre noticias, deuda, contratos o balance</p>
@@ -177,36 +209,41 @@ Instrucciones:
         </div>
       </div>
 
-      {/* Chat Messages Log */}
-      <div className="max-h-72 overflow-y-auto space-y-2.5 pr-1 text-xs">
+      {/* Chat Messages Log with guaranteed auto-scroll */}
+      <div 
+        ref={chatContainerRef}
+        className="min-h-[180px] max-h-[380px] overflow-y-auto space-y-3 pr-1 text-xs scroll-smooth"
+      >
         {messages.map(msg => (
           <div
             key={msg.id}
             className={`flex gap-2.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {msg.sender === 'assistant' && (
-              <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                 <Bot className="w-3.5 h-3.5" />
               </div>
             )}
+            
             <div
-              className={`p-3 rounded-2xl max-w-[88%] leading-relaxed ${
+              className={`p-3.5 rounded-2xl max-w-[90%] leading-relaxed shadow-2xs ${
                 msg.sender === 'user'
                   ? 'bg-emerald-700 text-white rounded-tr-xs'
-                  : 'bg-[#F9F7F2] text-[#191C21] border border-[#E7E2D8] rounded-tl-xs space-y-1'
+                  : 'bg-[#F9F7F2] text-[#191C21] border border-[#E7E2D8] rounded-tl-xs space-y-1.5'
               }`}
             >
-              <div className="whitespace-pre-line text-[11px] sm:text-xs">
+              <div className="whitespace-pre-line text-[11.5px] sm:text-xs">
                 {msg.text}
               </div>
-              <span className={`block text-[9px] mt-1 text-right ${
+              <span className={`block text-[9px] mt-1.5 text-right ${
                 msg.sender === 'user' ? 'text-emerald-200' : 'text-slate-400'
               }`}>
                 {msg.timestamp}
               </span>
             </div>
+
             {msg.sender === 'user' && (
-              <div className="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                 <User className="w-3.5 h-3.5" />
               </div>
             )}
@@ -214,17 +251,20 @@ Instrucciones:
         ))}
 
         {isLoading && (
-          <div className="flex items-center gap-2 text-slate-500 text-xs py-1">
+          <div className="flex items-center gap-2 text-slate-600 text-xs py-2 bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200 animate-pulse">
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-700" />
-            <span>Consultando datos contables y noticias de {cause.ticker}...</span>
+            <span className="font-medium">El analista contable está examinando los datos de {cause.ticker}...</span>
           </div>
         )}
+
+        {/* Scroll Anchor */}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Suggested Quick Questions */}
-      <div className="space-y-1 pt-1 border-t border-slate-100">
+      <div className="space-y-1.5 pt-2 border-t border-slate-100">
         <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
-          Preguntas Sugeridas:
+          Preguntas Rápidas Sugeridas:
         </span>
         <div className="flex flex-wrap gap-1.5">
           {suggestedQuestions.map((q, idx) => (
@@ -232,7 +272,7 @@ Instrucciones:
               key={idx}
               onClick={() => generateResponse(q)}
               disabled={isLoading}
-              className="px-2.5 py-1 rounded-lg bg-[#FAF8F5] hover:bg-emerald-50 hover:text-emerald-900 border border-[#E7E2D8] text-[11px] text-slate-600 transition text-left cursor-pointer active:scale-98"
+              className="px-2.5 py-1.5 rounded-xl bg-[#FAF8F5] hover:bg-emerald-50 hover:text-emerald-900 border border-[#E7E2D8] text-[11px] text-slate-700 transition text-left cursor-pointer active:scale-98 disabled:opacity-50"
             >
               {q}
             </button>
@@ -244,16 +284,16 @@ Instrucciones:
       <form onSubmit={handleSubmit} className="relative flex items-center pt-1">
         <input
           type="text"
-          placeholder={`Escribe tu consulta sobre ${cause.ticker} (ej. ¿Qué pasa con los avales?)...`}
+          placeholder={`Escribe tu consulta sobre ${cause.ticker} (ej. ¿Por qué está en vigilancia?)...`}
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
           disabled={isLoading}
-          className="w-full pl-3 pr-10 py-2 rounded-xl bg-white border border-[#DDD8CD] text-xs text-[#191C21] placeholder-slate-400 focus:outline-none focus:border-emerald-700 shadow-2xs"
+          className="w-full pl-3.5 pr-11 py-2.5 rounded-xl bg-white border border-[#DDD8CD] text-xs text-[#191C21] placeholder-slate-400 focus:outline-none focus:border-emerald-700 shadow-2xs"
         />
         <button
           type="submit"
           disabled={isLoading || !inputQuery.trim()}
-          className="absolute right-1.5 p-1.5 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-40 transition cursor-pointer"
+          className="absolute right-1.5 p-2 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-40 transition cursor-pointer active:scale-95"
           title="Enviar consulta"
         >
           <Send className="w-3.5 h-3.5" />

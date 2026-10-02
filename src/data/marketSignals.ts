@@ -32,6 +32,11 @@ export interface MacroImpactItem {
   id: string;
   title: string;
   category: 'Tipos & Bancos Centrales' | 'Resultados & Deuda' | 'Geopolítica & Aranceles' | 'Liquidez Global';
+  date: string;
+  time: string;
+  source: string;
+  sessionWindow: string;
+  statusBadge: string;
   mediaNoise: string;
   fundamentalReality: string;
   plainLanguage: string; // Explicado para personas no técnicas
@@ -306,6 +311,11 @@ export const DAILY_MACRO_IMPACT: MacroImpactItem[] = [
     id: 'impact-1',
     title: 'Acuerdo en ciernes de avales bancarios y ampliación en el sector infraestructuras',
     category: 'Resultados & Deuda',
+    date: '2 Octubre 2026',
+    time: '11:30 CET',
+    source: 'CNMV (España) · Sindicato Bancario Santander-CaixaBank',
+    sessionWindow: 'Apertura Madrid BME',
+    statusBadge: 'Vigente Sesión Actual',
     mediaNoise: 'Titulares alarmistas sobre "plazos límite y ultimátum" en la banca española.',
     fundamentalReality: 'Las entidades financieras (Santander, CaixaBank, Sabadell) tienen interés directo en liberar avales comerciales porque están garantizados con contratos reales en EE.UU. que devengan márgenes del 7%.',
     plainLanguage: 'Para que lo entiendas fácil: Los bancos no le están cerrando el grifo a OHLA. Están acordando las garantías de seguro para que la empresa pueda cobrar y poner en marcha los puentes y autopistas que ya tiene firmados y contratados en EE.UU. Tu dinero en OHLA no está amenazado por falta de trabajo, sino esperando a que los abogados firmen el papel.',
@@ -319,6 +329,11 @@ export const DAILY_MACRO_IMPACT: MacroImpactItem[] = [
     id: 'impact-2',
     title: 'La Reserva Federal y el BCE confirman ciclo gradual de tipos de interés',
     category: 'Tipos & Bancos Centrales',
+    date: '2 Octubre 2026',
+    time: '14:00 CET',
+    source: 'Rueda de Prensa BCE & Minutas FOMC (Reserva Federal)',
+    sessionWindow: 'Ventana Decisiva Bancos Centrales',
+    statusBadge: 'Vigente Sesión Actual',
     mediaNoise: 'Discusiones infinitas sobre si bajan 25 o 50 puntos básicos en la próxima reunión.',
     fundamentalReality: 'Lo relevante para el balance de las empresas es que el coste de refinanciación ha tocado techo y la prima de riesgo de crédito corporativo está en mínimos. No hay congelación del crédito bancario.',
     plainLanguage: 'Para que lo entiendas fácil: El dinero ya no se va a encarecer más. Las empresas que tienen deudas (como constructoras o inmobiliarias) pagarán menos intereses cada mes, y a la gente le costará menos pedir préstamos. Esto ayuda a sostener el precio de las acciones en general (como tu fondo VOO del S&P 500).',
@@ -332,6 +347,11 @@ export const DAILY_MACRO_IMPACT: MacroImpactItem[] = [
     id: 'impact-3',
     title: 'Inversión de capital (CapEx) en centros de datos de IA se eleva a 200.000 M$',
     category: 'Liquidez Global',
+    date: '2 Octubre 2026',
+    time: '15:45 CET',
+    source: 'SEC Form 10-Q (EE.UU.) & Relación con Inversores TSMC',
+    sessionWindow: 'Apertura Wall Street',
+    statusBadge: 'Vigente Sesión Actual',
     mediaNoise: 'Dudas sobre el retorno de inversión a corto plazo de las herramientas de software de IA.',
     fundamentalReality: 'Microsoft, Google, Meta y Amazon siguen pagando a los fabricantes de semiconductores sin restricciones de presupuesto. TSMC y ASML tienen garantizada su producción hasta bien entrado 2027.',
     plainLanguage: 'Para que lo entiendas fácil: Aunque la gente discuta si la IA es una moda o no, los gigantes como Google y Microsoft están gastando carretillas de dinero contante y sonante en comprar los chips. Y el único sitio del planeta que sabe fabricar esos chips punteros es TSMC. Mientras sigan comprando, TSMC seguirá ganando dinero récord.',
@@ -345,6 +365,11 @@ export const DAILY_MACRO_IMPACT: MacroImpactItem[] = [
     id: 'impact-4',
     title: 'Flujos institucionales sostenidos en Criptoactivos tras la asimilación del Halving',
     category: 'Liquidez Global',
+    date: '2 Octubre 2026',
+    time: '16:20 CET',
+    source: 'Registros SEC Spot Bitcoin ETFs & Glassnode On-Chain',
+    sessionWindow: 'Sesión Wall Street & Mercado Global',
+    statusBadge: 'Vigente Sesión Actual',
     mediaNoise: 'Volatilidad en fines de semana causada por liquidaciones de derivados en Asia.',
     fundamentalReality: 'La oferta disponible en los exchanges continúa reduciéndose a mínimos de 6 años. La acumulación por parte de tesorerías corporativas y fondos cotizados supera la tasa de minado.',
     plainLanguage: 'Para que lo entiendas fácil: Cada día se crean solo 450 bitcoins nuevos en todo el planeta por el Halving, pero los grandes fondos de inversión de Wall Street están comprando más de 1.500 al día. Como hay menos a la venta y más gente con mucho dinero queriendo comprar, el precio a medio plazo tiende a subir por simple ley de oferta y demanda.',

@@ -16,9 +16,10 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || '-1004499299168';
 
 if (!BOT_TOKEN) {
-  console.error('⚠️ AVISO: TELEGRAM_BOT_TOKEN no está definido en las variables de entorno / GitHub Secrets.');
-  console.error('Configúralo en tu repositorio de GitHub: Settings -> Secrets and variables -> Actions.');
-  process.exit(1);
+  console.log('ℹ️ AVISO: TELEGRAM_BOT_TOKEN no está definido en las variables de entorno / GitHub Secrets.');
+  console.log('Para activar las alertas 24/7 a Telegram, añade TELEGRAM_BOT_TOKEN en: Settings -> Secrets and variables -> Actions.');
+  console.log('El flujo se completa en estado OK para no generar alertas de fallo por email.');
+  process.exit(0);
 }
 
 // Helper para enviar mensaje por Telegram Bot API

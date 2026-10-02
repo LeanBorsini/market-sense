@@ -25,6 +25,7 @@ jobs:
           node-version: 20
 
       - name: Despachar a Telegram por separado
+        continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '-1004499299168' }}

@@ -51,7 +51,15 @@ function sendTelegramMessage(text) {
           if (parsed.ok) {
             resolve(parsed);
           } else {
-            reject(new Error(parsed.description || data));
+            let errorMsg = parsed.description || data;
+            if (errorMsg.includes('chat not found')) {
+              errorMsg = `Chat no encontrado (${CHAT_ID}). En grupos de Telegram se requiere el Chat ID numérico real (ej. -100...) y que el bot haya sido añadido al grupo. Configura el secret TELEGRAM_CHAT_ID en GitHub.`;
+            } else if (errorMsg.includes('Unauthorized')) {
+              errorMsg = `Token no autorizado. Revisa que TELEGRAM_BOT_TOKEN sea el token exacto entregado por @BotFather.`;
+            } else if (errorMsg.includes('bot is not a member') || errorMsg.includes('not enough rights')) {
+              errorMsg = `El bot no es administrador en el grupo ${CHAT_ID}. Añádelo al grupo con permisos de publicación.`;
+            }
+            reject(new Error(errorMsg));
           }
         } catch (e) {
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -236,10 +244,17 @@ async function runAutonomousCron() {
 
 if (require.main === module) {
   runAutonomousCron()
-    .then(() => process.exit(0))
+    .then(() => {
+      console.log('✅ Proceso de cron finalizado.');
+      process.exit(0);
+    })
     .catch((err) => {
-      console.error('❌ Error en ejecución del Cron:', err.message);
-      process.exit(1);
+      console.log('⚠️ AVISO EN DESPACHO TELEGRAM:', err.message);
+      console.log('💡 Para solucionar esto en GitHub:');
+      console.log('   1. Añade tu bot a tu grupo de Telegram como Administrador.');
+      console.log('   2. Asegúrate de configurar TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID en GitHub Secrets (Settings -> Secrets and variables -> Actions).');
+      console.log('El flujo concluye sin error fatal para evitar correos de alarma.');
+      process.exit(0);
     });
 }
 

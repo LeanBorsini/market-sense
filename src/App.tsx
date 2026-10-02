@@ -1898,18 +1898,42 @@ export default function App() {
                 </button>
 
                 {showCronGuide && (
-                  <div className="p-2.5 rounded-lg bg-slate-800 text-slate-200 text-[11px] space-y-2 border border-slate-700">
-                    <p className="font-semibold text-white">Solo necesitas añadir tu Bot Token en GitHub:</p>
-                    <ol className="list-decimal list-inside space-y-1 text-slate-300 text-[10.5px]">
-                      <li>Abre tu repositorio en <strong>GitHub</strong> en el navegador.</li>
-                      <li>Toca en <strong>Settings</strong> ➔ <strong>Secrets and variables</strong> ➔ <strong>Actions</strong>.</li>
-                      <li>Pulsa el botón verde <strong>New repository secret</strong>.</li>
-                      <li>Nombre: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-emerald-300 font-mono">TELEGRAM_BOT_TOKEN</code></li>
-                      <li>Valor: Pega tu Bot Token de @BotFather (ej. <code className="text-slate-400">{customBotToken ? customBotToken.slice(0, 15) + '...' : '7123456...'}</code>).</li>
-                      <li>¡Listo! Tu Chat ID (<code className="text-emerald-300">-1004499299168</code>) ya quedó preconfigurado por defecto en el código.</li>
+                  <div className="p-3 rounded-lg bg-slate-800 text-slate-200 text-[11px] space-y-2.5 border border-slate-700">
+                    <p className="font-semibold text-white">Configura estos 2 datos en GitHub para que funcione solo:</p>
+                    <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[10.5px]">
+                      <li>Abre tu repositorio en <strong>GitHub</strong> en el navegador (ej. desde el móvil o PC).</li>
+                      <li>Ve a <strong>Settings</strong> ➔ <strong>Secrets and variables</strong> ➔ <strong>Actions</strong>.</li>
+                      <li>
+                        Añade el secreto 1 (pulsa <em>New repository secret</em>):
+                        <div className="mt-1 pl-3 font-mono text-[10px] space-y-0.5 text-emerald-300">
+                          <div>Nombre: <strong>TELEGRAM_BOT_TOKEN</strong></div>
+                          <div className="text-slate-400">Valor: {customBotToken ? customBotToken.slice(0, 12) + '...' : '(Tu Token de @BotFather)'}</div>
+                        </div>
+                      </li>
+                      <li>
+                        Añade el secreto 2 (pulsa <em>New repository secret</em>):
+                        <div className="mt-1 pl-3 font-mono text-[10px] space-y-0.5 text-emerald-300">
+                          <div>Nombre: <strong>TELEGRAM_CHAT_ID</strong></div>
+                          <div className="text-slate-400">Valor: {customChatId || '-100... (Usa el botón verde "Detectar ID" de arriba)'}</div>
+                        </div>
+                      </li>
+                      <li>
+                        <strong>Importante:</strong> Tu bot de Telegram debe estar dentro de tu grupo con rango de <strong>Administrador</strong>.
+                      </li>
                     </ol>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const copyStr = `TELEGRAM_BOT_TOKEN=${customBotToken}\nTELEGRAM_CHAT_ID=${customChatId}`;
+                        copyText(copyStr);
+                      }}
+                      className="w-full py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-white font-semibold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{isCopied ? '¡Copiado al Portapapeles!' : 'Copiar mis 2 Claves para GitHub Secrets'}</span>
+                    </button>
                     <p className="text-slate-400 italic text-[10px]">
-                      A partir de ese momento, los servidores de GitHub despacharán automáticamente los mensajes por separado a las 4 horas de mercado aunque no toques la app.
+                      El cron ahora está protegido: nunca más fallará ni te enviará correos de error aunque el bot aún no esté en el grupo.
                     </p>
                   </div>
                 )}

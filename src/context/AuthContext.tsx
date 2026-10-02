@@ -32,6 +32,9 @@ export interface SyncedUserData {
 interface AuthContextType {
   currentUser: User | null;
   isLoading: boolean;
+  isLoggingIn: boolean;
+  authError: string | null;
+  clearAuthError: () => void;
   cloudSynced: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -44,6 +47,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [cloudSynced, setCloudSynced] = useState(false);
   const [cloudData, setCloudData] = useState<SyncedUserData | null>(null);
 
@@ -86,11 +91,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribeSnapshot();
   }, [currentUser]);
 
+  const clearAuthError = () => setAuthError(null);
+
   const loginWithGoogle = async () => {
+    setIsLoggingIn(true);
+    setAuthError(null);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.warn('Google sign-in was cancelled or encountered an issue:', error);
+    } catch (error: any) {
+      console.error('Firebase Auth Sign-In Error:', error);
+      let friendlyMessage = 'No se pudo iniciar sesión con Google.';
+      
+      if (error?.code === 'auth/popup-blocked') {
+        friendlyMessage = 'El navegador bloqueó la ventana emergente de Google. Pulsa en la barra de direcciones de tu navegador para permitir las ventanas emergentes (pop-ups) e inténtalo de nuevo.';
+      } else if (error?.code === 'auth/unauthorized-domain') {
+        friendlyMessage = 'Dominio web no autorizado en Firebase. Para habilitar el inicio de sesión en este dominio, debes añadirlo en Firebase Console -> Authentication -> Settings -> Authorized Domains.';
+      } else if (error?.code === 'auth/popup-closed-by-user') {
+        friendlyMessage = 'La ventana de inicio de sesión fue cerrada antes de completar la verificación.';
+      } else if (error?.code === 'auth/cancelled-popup-request') {
+        friendlyMessage = 'Ya hay una solicitud de inicio de sesión en curso en este momento.';
+      } else if (error?.message) {
+        friendlyMessage = `Aviso de Google: ${error.message}`;
+      }
+
+      setAuthError(friendlyMessage);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -131,6 +157,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         currentUser,
         isLoading,
+        isLoggingIn,
+        authError,
+        clearAuthError,
         cloudSynced,
         loginWithGoogle,
         logout,

@@ -48,7 +48,16 @@ import { PWAInstallButton } from './components/PWAInstallButton';
 import { useAuth } from './context/AuthContext';
 
 export default function App() {
-  const { currentUser, loginWithGoogle, logout, saveUserDataToCloud, cloudData } = useAuth();
+  const { 
+    currentUser, 
+    loginWithGoogle, 
+    logout, 
+    saveUserDataToCloud, 
+    cloudData, 
+    isLoggingIn, 
+    authError, 
+    clearAuthError 
+  } = useAuth();
 
   // Profiles State
   const [profiles, setProfiles] = useState<UserProfile[]>(() => {
@@ -188,10 +197,27 @@ export default function App() {
     setIsDetectingChatId(true);
     setDetectStatus(null);
     try {
-      const res = await fetch(`https://api.telegram.org/bot${customBotToken.trim()}/getUpdates`);
-      const data = await res.json();
-      if (!data.ok) {
-        setDetectStatus(`❌ Error del bot: ${data.description}`);
+      let data: any = null;
+      try {
+        const proxyRes = await fetch('/api/telegram-detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: customBotToken.trim() })
+        });
+        if (proxyRes.ok) {
+          data = await proxyRes.json();
+        }
+      } catch (e) {
+        // Fallback to direct client call if server proxy unavailable
+      }
+
+      if (!data) {
+        const res = await fetch(`https://api.telegram.org/bot${customBotToken.trim()}/getUpdates`);
+        data = await res.json();
+      }
+
+      if (!data?.ok) {
+        setDetectStatus(`❌ Error del bot: ${data?.description || 'No se pudo conectar con el bot'}`);
         return;
       }
       
@@ -482,20 +508,56 @@ export default function App() {
       localStorage.setItem('marketsense_tg_token', customBotToken.trim());
       localStorage.setItem('marketsense_tg_chatid', customChatId.trim());
 
+      const postSingleMessage = async (text: string) => {
+        let sent = false;
+        try {
+          const proxyRes = await fetch('/api/telegram-dispatch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: customBotToken.trim(),
+              chatId: customChatId.trim(),
+              text: text
+            })
+          });
+          const proxyData = await proxyRes.json();
+          if (proxyRes.ok && proxyData.success) {
+            sent = true;
+          } else if (proxyData?.error) {
+            throw new Error(proxyData.error);
+          }
+        } catch (proxyErr: any) {
+          if (proxyErr?.message && !proxyErr.message.includes('Failed to fetch')) {
+            throw proxyErr;
+          }
+        }
+
+        if (!sent) {
+          const directRes = await fetch(`https://api.telegram.org/bot${customBotToken.trim()}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: customChatId.trim(),
+              text: text,
+              disable_web_page_preview: true
+            })
+          });
+          const directData = await directRes.json();
+          if (!directData.ok) {
+            let errDesc = directData.description || 'Error de Telegram';
+            if (errDesc.includes('chat not found')) {
+              errDesc = `Chat no encontrado. En grupos privados ("${customChatId}") Telegram no acepta el nombre escrito; requiere su Chat ID numérico (ej. -100...). Entra en ajustes ⚙️ y pulsa "Detectar ID de mi Grupo".`;
+            } else if (errDesc.includes('bot is not a member') || errDesc.includes('not enough rights')) {
+              errDesc = `Falta hacer Administrador a tu bot en ${customChatId} para que pueda publicar.`;
+            }
+            throw new Error(errDesc);
+          }
+        }
+      };
+
       // If customText is provided (e.g. sending a single asset), dispatch only that
       if (customText) {
-        const res = await fetch(`https://api.telegram.org/bot${customBotToken.trim()}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: customChatId.trim(),
-            text: customText
-          })
-        });
-        const data = await res.json();
-        if (!data.ok) {
-          throw new Error(data.description || 'Error al enviar a Telegram');
-        }
+        await postSingleMessage(customText);
         setTelegramStatusNotice(`✅ ¡Activo enviado con éxito a Telegram!`);
         setIsTelegramSettingsOpen(false);
         return;
@@ -532,29 +594,11 @@ export default function App() {
       const allMessages = [headerMsg, ...assetMessages, closingMsg];
 
       for (let i = 0; i < allMessages.length; i++) {
-        const msgText = allMessages[i];
-        const res = await fetch(`https://api.telegram.org/bot${customBotToken.trim()}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: customChatId.trim(),
-            text: msgText
-          })
-        });
-        const data = await res.json();
-        if (!data.ok) {
-          let errDesc = data.description || 'Revisa tu Token o permisos';
-          if (errDesc.includes('chat not found')) {
-            errDesc = `Chat no encontrado. En grupos privados ("${customChatId}") Telegram no acepta el nombre escrito; requiere su ID numérico (ej. -100...). Entra en ajustes ⚙️ y pulsa "Detectar ID de mi Grupo".`;
-          } else if (errDesc.includes('bot is not a member') || errDesc.includes('not enough rights')) {
-            errDesc = `Falta hacer Administrador a tu bot en ${customChatId} para que pueda publicar.`;
-          }
-          throw new Error(errDesc);
-        }
+        await postSingleMessage(allMessages[i]);
 
         // Brief delay between sequential messages to respect rate limits and keep order
         if (i < allMessages.length - 1) {
-          await new Promise(r => setTimeout(r, 400));
+          await new Promise(resolve => setTimeout(resolve, 350));
         }
       }
 
@@ -750,16 +794,21 @@ export default function App() {
             ) : (
               <button
                 onClick={loginWithGoogle}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 border border-[#DDD8CD] text-xs font-semibold transition active:scale-95 shadow-2xs cursor-pointer"
+                disabled={isLoggingIn}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 border border-[#DDD8CD] text-xs font-semibold transition active:scale-95 shadow-2xs cursor-pointer disabled:opacity-60"
                 title="Inicia sesión con Google para sincronizar tu cartera personal en la nube"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.27-2.09 3.665-5.17 3.665-9.12z"/>
-                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.13C3.26 21.39 7.33 24 12 24z"/>
-                  <path fill="#FBBC05" d="M5.28 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.13z"/>
-                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.61 1.25 6.58l4.03 3.13c.95-2.83 3.6-4.96 6.72-4.96z"/>
-                </svg>
-                <span className="hidden sm:inline">Tu Cuenta</span>
+                {isLoggingIn ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                ) : (
+                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.27-2.09 3.665-5.17 3.665-9.12z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.13C3.26 21.39 7.33 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.28 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.13z"/>
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.61 1.25 6.58l4.03 3.13c.95-2.83 3.6-4.96 6.72-4.96z"/>
+                  </svg>
+                )}
+                <span>{isLoggingIn ? 'Conectando...' : 'Iniciar Sesión'}</span>
               </button>
             )}
           </div>
@@ -786,6 +835,27 @@ export default function App() {
           </form>
         </div>
       </header>
+
+      {/* ─── AUTH ERROR BANNER ─── */}
+      {authError && (
+        <div className="bg-rose-50 border-b border-rose-200 px-4 py-3 text-xs text-rose-900 shadow-2xs">
+          <div className="max-w-5xl mx-auto flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <span className="text-base shrink-0">⚠️</span>
+              <div>
+                <strong className="font-semibold block text-rose-950">Aviso sobre Inicio de Sesión:</strong>
+                <p className="mt-0.5 text-rose-800 leading-relaxed">{authError}</p>
+              </div>
+            </div>
+            <button
+              onClick={clearAuthError}
+              className="text-rose-700 hover:text-rose-900 font-bold px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 transition cursor-pointer shrink-0"
+            >
+              Entendido ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ─── STATUS NOTICE BANNER ─── */}
       {telegramStatusNotice && (
@@ -929,24 +999,6 @@ export default function App() {
                 </button>
               </div>
             </div>
-
-            {/* Cloud Sync info banner if not logged in */}
-            {!currentUser && (
-              <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-base shrink-0">☁️</span>
-                  <span className="text-amber-900 leading-snug">
-                    <strong>Cada usuario tiene su propia Watchlist privada.</strong> Ahora mismo está guardada en tu navegador. Si quieres sincronizarla automáticamente entre tu móvil, tablet y PC, conecta tu cuenta de Google.
-                  </span>
-                </div>
-                <button
-                  onClick={loginWithGoogle}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs transition shrink-0 self-start sm:self-auto cursor-pointer"
-                >
-                  Conectar con Google
-                </button>
-              </div>
-            )}
 
             {/* Vertical Accordion List */}
             <div className="space-y-2.5">

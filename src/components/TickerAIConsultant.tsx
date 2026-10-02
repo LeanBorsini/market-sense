@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, RefreshCw, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Send, Bot, User, RefreshCw, Sparkles, BrainCircuit } from 'lucide-react';
 import { MovementCause } from '../data/marketSignals';
 
 interface TickerAIConsultantProps {
@@ -29,132 +29,54 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause })
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom whenever messages change or loading state changes
+  // Auto-scroll to bottom whenever messages or loading change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages, isLoading]);
 
   // Preset question shortcuts tailored to the asset
   const suggestedQuestions = [
-    `¿Por qué ${cause.ticker} está catalogado en ${cause.trafficLight === 'VERDE' ? 'verde' : cause.trafficLight === 'AMBAR' ? 'vigilancia (ámbar)' : 'alerta'}?`,
+    `¿Por qué ${cause.ticker} está catalogado en ${cause.trafficLight === 'VERDE' ? 'verde' : cause.trafficLight === 'AMBAR' ? 'vigilancia' : 'alerta'}?`,
+    `¿Qué pasa si el estado cambia de verde a amarillo y queda en vigilancia?`,
     `¿Por qué la última noticia de prensa sobre ${cause.ticker} es ruido?`,
     `¿Cómo afecta la situación actual a la caja y a la deuda?`,
     `Explícame la previsión a corto y medio plazo en lenguaje sencillo`
   ];
 
-  // Deep financial reasoning generator
-  const buildAnalyticalAnswer = (prompt: string): string => {
-    const q = prompt.toLowerCase();
+  // Robust analytical fallback in case network is offline
+  const buildOfflineFallback = (userPrompt: string): string => {
+    const q = userPrompt.toLowerCase();
 
-    // 1. Question about Surveillance / Traffic Light / Semáforo
-    if (
-      q.includes('vigilan') || 
-      q.includes('semáforo') || 
-      q.includes('semaforo') || 
-      q.includes('color') || 
-      q.includes('ámbar') || 
-      q.includes('ambar') || 
-      q.includes('amarillo') || 
-      q.includes('verde') || 
-      q.includes('rojo') ||
-      q.includes('catalogado') ||
-      q.includes('estado')
-    ) {
-      if (cause.trafficLight === 'AMBAR') {
-        return `🟡 **¿Por qué ${cause.ticker} está en VIGILANCIA (Semáforo Ámbar)?**\n\n` +
-          `• **La Causa del Semáforo Ámbar:**\n` +
-          `Está en vigilancia NO por peligro de quiebra, sino por una transición coyuntural en sus ingresos: ${cause.trafficLightReason || cause.rootCause}\n\n` +
-          `• **Salud de Balance:**\n` +
-          `${cause.debtSolvencyImpact}\n\n` +
-          `• **Respaldo de Caja:**\n` +
-          `${cause.cashFlowImpact}\n\n` +
-          `• **Veredicto para tu dinero:**\n` +
-          `👉 ${cause.verdict}\n\n` +
-          `_En cristiano: La empresa está ganando dinero y su deuda está controlada; el semáforo amarillo solo indica que el mercado está esperando que se normalicen los márgenes o se firmen los acuerdos previstos._`;
-      } else if (cause.trafficLight === 'VERDE') {
-        return `🟢 **¿Por qué ${cause.ticker} está en SEMÁFORO VERDE (Protegido)?**\n\n` +
-          `• **Motivo contable:** ${cause.trafficLightReason || 'Generación operativa sólida y balance sin tensiones de liquidez.'}\n\n` +
-          `• **Capacidad de Generación:** ${cause.ebitdaImpact}\n` +
-          `• **Solvencia y Deuda:** ${cause.debtSolvencyImpact}\n\n` +
-          `• **Veredicto para tu dinero:**\n` +
-          `👉 ${cause.verdict}`;
-      } else {
-        return `🔴 **¿Por qué ${cause.ticker} está en ALERTA (Semáforo Rojo)?**\n\n` +
-          `• **Motivo:** ${cause.trafficLightReason || 'Tensión en estructura de balance o vencimientos de deuda a corto plazo.'}\n\n` +
-          `• **Riesgo principal:** ${cause.debtSolvencyImpact}\n` +
-          `• **Impacto en caja:** ${cause.cashFlowImpact}\n\n` +
-          `• **Veredicto:** ${cause.verdict}`;
-      }
+    if (q.includes('cambia') || (q.includes('verde') && q.includes('amarillo')) || q.includes('vigilan')) {
+      return `🟡 **¿Qué significa que un activo pase de VERDE a AMARILLO (Vigilancia)?**\n\n` +
+        `En nuestro sistema de análisis fundamental, el paso de **Verde (Protegido)** a **Amarillo (Vigilancia)** significa que:\n\n` +
+        `1. **NO significa peligro de quiebra ni pánico:** El negocio sigue siendo viable y no hay impago de deudas.\n` +
+        `2. **Aparece un factor de incertidumbre coyuntural:** Por ejemplo, retraso en la firma de avales bancarios, márgenes de refino comprimidos temporalmente por el precio del petróleo, o una revisión a la baja de previsiones de ventas.\n` +
+        `3. **Qué debe hacer el inversor:** No vender por impulso ni entrar en pánico. Se pausa la compra agresiva y se vigilan los hechos relevantes auditados ante la CNMV/SEC hasta que se confirme si el problema se arregla o se agrava.\n\n` +
+        `En el caso de **${cause.ticker}**, su estado actual es **${cause.trafficLight}** (${cause.trafficLightReason || cause.rootCause}).`;
     }
 
-    // 2. Question about Noise, Media Headlines, News
-    if (q.includes('ruido') || q.includes('prensa') || q.includes('noticia') || q.includes('titular') || q.includes('diario') || q.includes('periódico') || q.includes('periodico')) {
-      return `📰 **Filtro de Ruido de Prensa para ${cause.ticker}:**\n\n` +
-        `• **Lo que dicen los titulares alarmistas:**\n` +
-        `Suelen exagerar variaciones diarias del 1-3% o citar "plazos límite" para generar clics.\n\n` +
-        `• **La Realidad Contable Incontrastable:**\n` +
-        `${cause.noiseExplanation}\n\n` +
-        `• **Qué vigilar de verdad:**\n` +
-        `No leas los rumores. Lo único que cambia el valor de tus acciones son los hechos relevantes auditados ante el regulador (CNMV o SEC) que alteren la caja o los contratos.\n\n` +
+    if (q.includes('ruido') || q.includes('prensa') || q.includes('noticia')) {
+      return `📰 **Filtro de Ruido para ${cause.ticker}:**\n\n` +
+        `• **Lo que dice la prensa:** Foco en titulares alarmistas o movimientos intradía.\n` +
+        `• **La realidad contable:** ${cause.noiseExplanation}\n\n` +
         `👉 **Veredicto:** ${cause.verdict}`;
     }
 
-    // 3. Question about Cash Flow, Debt, EBITDA, Bankruptcy, Solvency
-    if (q.includes('caja') || q.includes('deuda') || q.includes('ebitda') || q.includes('quiebra') || q.includes('solvencia') || q.includes('bancarrota') || q.includes('dinero') || q.includes('balance')) {
-      return `💰 **Auditoría de Caja y Deuda de ${cause.ticker}:**\n\n` +
-        `• **Flujo de Caja Libre (Cash Flow):**\n` +
-        `${cause.cashFlowImpact}\n\n` +
-        `• **Estructura y Carga de Deuda:**\n` +
-        `${cause.debtSolvencyImpact}\n\n` +
-        `• **Generación Operativa (EBITDA):**\n` +
-        `${cause.ebitdaImpact}\n\n` +
-        `👉 **Diagnóstico de Solvencia:** ${cause.trafficLight === 'VERDE' ? 'Balance sólido y protegido. No hay riesgo de insolvencia inminente.' : cause.trafficLight === 'AMBAR' ? 'Balance estable con ratios de cobertura controlados. En vigilancia temporal.' : 'Atención a los vencimientos de deuda.'}`;
-    }
-
-    // 4. Question about Forecast, Future, Outlook, Short/Mid/Long Term
-    if (q.includes('previsi') || q.includes('futuro') || q.includes('plazo') || q.includes('subirá') || q.includes('subira') || q.includes('bajará') || q.includes('bajara') || q.includes('comprar') || q.includes('vender') || q.includes('qué hago') || q.includes('que hago')) {
-      return `🎯 **Previsión Temporal Fundamental para ${cause.ticker}:**\n\n` +
-        `• **Corto Plazo (${cause.shortTermOutlook.period}):**\n` +
-        `  ${cause.shortTermOutlook.arrow} **${cause.shortTermOutlook.label}**\n` +
-        `  ↳ ${cause.shortTermOutlook.summary}\n\n` +
-        `• **Medio Plazo (${cause.midTermOutlook.period}):**\n` +
-        `  ${cause.midTermOutlook.arrow} **${cause.midTermOutlook.label}**\n` +
-        `  ↳ ${cause.midTermOutlook.summary}\n\n` +
-        `• **Largo Plazo (${cause.longTermOutlook.period}):**\n` +
-        `  ${cause.longTermOutlook.arrow} **${cause.longTermOutlook.label}**\n` +
-        `  ↳ ${cause.longTermOutlook.summary}\n\n` +
-        `👉 **Recomendación Estratégica:**\n` +
-        `${cause.verdict}`;
-    }
-
-    // 5. Question about Dividends or Shareholder Return
-    if (q.includes('dividendo') || q.includes('yield') || q.includes('recompra') || q.includes('paga')) {
-      return `💵 **Retribución al Accionista para ${cause.ticker}:**\n\n` +
-        `• **Situación Financiera:** ${cause.cashFlowImpact}\n` +
-        `• **Capacidad de Pago:** ${cause.ebitdaImpact}\n` +
-        `• **Veredicto:** ${cause.verdict}`;
-    }
-
-    // 6. General / Direct Question
-    return `📊 **Análisis Fundamental de ${cause.ticker} (${cause.name}):**\n\n` +
-      `Para tu consulta sobre _"${prompt.slice(0, 70)}"_:\n\n` +
-      `• **La Causa Real del Precio Hoy:**\n` +
-      `${cause.rootCause}\n\n` +
-      `• **Filtro de Ruido:**\n` +
-      `${cause.noiseExplanation}\n\n` +
-      `• **Salud de Balance:**\n` +
-      `${cause.debtSolvencyImpact}\n\n` +
-      `👉 **Veredicto para tu cartera:**\n` +
-      `${cause.verdict}`;
+    return `📊 **Análisis Fundamental de ${cause.ticker}:**\n\n` +
+      `Para tu consulta sobre _"${userPrompt.slice(0, 60)}"_:\n\n` +
+      `• **Situación Real:** ${cause.rootCause}\n` +
+      `• **Impacto en Caja & Deuda:** ${cause.cashFlowImpact} | ${cause.debtSolvencyImpact}\n` +
+      `• **Recomendación:** ${cause.verdict}`;
   };
 
-  // Generate contextual response
-  const generateResponse = (userPrompt: string) => {
+  // Generate real AI response via server Gemini endpoint
+  const generateResponse = async (userPrompt: string) => {
     if (!userPrompt.trim()) return;
 
     const timeNow = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     
-    // Add user message
+    // 1. Add user message immediately
     const userMsg: ChatMessage = {
       id: `usr_${Date.now()}`,
       sender: 'user',
@@ -165,19 +87,68 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause })
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
 
-    // Fast, reliable response delivery
-    setTimeout(() => {
-      const reply = buildAnalyticalAnswer(userPrompt);
-      const assistantMsg: ChatMessage = {
-        id: `asst_${Date.now()}`,
-        sender: 'assistant',
-        text: reply,
-        timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-      };
+    try {
+      // Call server-side Gemini API proxy
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: userPrompt.trim(),
+          ticker: cause.ticker,
+          assetContext: {
+            name: cause.name,
+            price: cause.price,
+            change: cause.change,
+            trafficLight: cause.trafficLight,
+            trafficLightReason: cause.trafficLightReason,
+            rootCause: cause.rootCause,
+            noiseExplanation: cause.noiseExplanation,
+            cashFlowImpact: cause.cashFlowImpact,
+            debtSolvencyImpact: cause.debtSolvencyImpact,
+            ebitdaImpact: cause.ebitdaImpact,
+            shortTermOutlook: cause.shortTermOutlook,
+            midTermOutlook: cause.midTermOutlook,
+            longTermOutlook: cause.longTermOutlook,
+            verdict: cause.verdict
+          },
+          history: messages.slice(-4)
+        })
+      });
 
-      setMessages(prev => [...prev, assistantMsg]);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const replyText = data.reply || buildOfflineFallback(userPrompt);
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `asst_${Date.now()}`,
+          sender: 'assistant',
+          text: replyText,
+          timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    } catch (err: any) {
+      console.warn('Fallback to local analytical engine:', err);
+      const fallbackReply = buildOfflineFallback(userPrompt);
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `asst_${Date.now()}`,
+          sender: 'assistant',
+          text: fallbackReply,
+          timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    } finally {
       setIsLoading(false);
-    }, 350);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -190,7 +161,7 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause })
 
   return (
     <div className="rounded-2xl border border-emerald-200/90 bg-white p-3.5 sm:p-5 space-y-3 shadow-xs">
-      {/* Header - Clean, professional, no keys or token configuration visible */}
+      {/* Header - Clean, professional chatbot badge */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs shrink-0">
@@ -198,13 +169,13 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause })
           </div>
           <div>
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-xs text-[#191C21]">Consultor Fundamental: {cause.ticker}</span>
+              <span className="font-bold text-xs text-[#191C21]">Consultor Financiero IA: {cause.ticker}</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                Analista en Línea
+                <BrainCircuit className="w-3 h-3 text-emerald-700" />
+                <span>Gemini 3.8 Flash Activo</span>
               </span>
             </div>
-            <p className="text-[11px] text-slate-500">Pregúntale cualquier duda sobre noticias, deuda, contratos o balance</p>
+            <p className="text-[11px] text-slate-500">Pregúntale dudas reales sobre situaciones de mercado, hipótesis o balance</p>
           </div>
         </div>
       </div>
@@ -212,7 +183,7 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause })
       {/* Chat Messages Log with guaranteed auto-scroll */}
       <div 
         ref={chatContainerRef}
-        className="min-h-[180px] max-h-[380px] overflow-y-auto space-y-3 pr-1 text-xs scroll-smooth"
+        className="min-h-[190px] max-h-[390px] overflow-y-auto space-y-3 pr-1 text-xs scroll-smooth"
       >
         {messages.map(msg => (
           <div
@@ -226,7 +197,7 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause })
             )}
             
             <div
-              className={`p-3.5 rounded-2xl max-w-[90%] leading-relaxed shadow-2xs ${
+              className={`p-3.5 rounded-2xl max-w-[92%] sm:max-w-[85%] leading-relaxed shadow-2xs ${
                 msg.sender === 'user'
                   ? 'bg-emerald-700 text-white rounded-tr-xs'
                   : 'bg-[#F9F7F2] text-[#191C21] border border-[#E7E2D8] rounded-tl-xs space-y-1.5'
@@ -251,9 +222,9 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause })
         ))}
 
         {isLoading && (
-          <div className="flex items-center gap-2 text-slate-600 text-xs py-2 bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200 animate-pulse">
+          <div className="flex items-center gap-2 text-slate-600 text-xs py-2 bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200">
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-700" />
-            <span className="font-medium">El analista contable está examinando los datos de {cause.ticker}...</span>
+            <span className="font-medium">Gemini está analizando la situación y razonando tu respuesta...</span>
           </div>
         )}
 
@@ -284,7 +255,7 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause })
       <form onSubmit={handleSubmit} className="relative flex items-center pt-1">
         <input
           type="text"
-          placeholder={`Escribe tu consulta sobre ${cause.ticker} (ej. ¿Por qué está en vigilancia?)...`}
+          placeholder={`Escribe tu consulta sobre ${cause.ticker} (ej. ¿Qué pasa si cambia a amarillo?)...`}
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
           disabled={isLoading}
@@ -294,7 +265,7 @@ export const TickerAIConsultant: React.FC<TickerAIConsultantProps> = ({ cause })
           type="submit"
           disabled={isLoading || !inputQuery.trim()}
           className="absolute right-1.5 p-2 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-40 transition cursor-pointer active:scale-95"
-          title="Enviar consulta"
+          title="Enviar consulta a Gemini"
         >
           <Send className="w-3.5 h-3.5" />
         </button>

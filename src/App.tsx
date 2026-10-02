@@ -24,7 +24,8 @@ import {
   HelpCircle,
   ArrowRight,
   RefreshCw,
-  Globe
+  Globe,
+  ExternalLink
 } from 'lucide-react';
 import { 
   Asset, 
@@ -51,11 +52,13 @@ export default function App() {
   const { 
     currentUser, 
     loginWithGoogle, 
+    enableLocalProfile,
     logout, 
     saveUserDataToCloud, 
     cloudData, 
     isLoggingIn, 
     authError, 
+    authErrorCode,
     clearAuthError 
   } = useAuth();
 
@@ -863,23 +866,86 @@ export default function App() {
         </div>
       </header>
 
-      {/* ─── AUTH ERROR BANNER ─── */}
+      {/* ─── AUTH ERROR BANNER / DOMAIN AUTHORIZATION HELPER ─── */}
       {authError && (
-        <div className="bg-rose-50 border-b border-rose-200 px-4 py-3 text-xs text-rose-900 shadow-2xs">
-          <div className="max-w-5xl mx-auto flex items-start justify-between gap-3">
-            <div className="flex items-start gap-2">
-              <span className="text-base shrink-0">⚠️</span>
-              <div>
-                <strong className="font-semibold block text-rose-950">Aviso sobre Inicio de Sesión:</strong>
-                <p className="mt-0.5 text-rose-800 leading-relaxed">{authError}</p>
+        <div className="bg-amber-50/95 border-b border-amber-300 px-4 py-3.5 text-xs text-amber-950 shadow-xs">
+          <div className="max-w-5xl mx-auto space-y-2.5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <span className="text-xl shrink-0">🔐</span>
+                <div>
+                  <h4 className="font-bold text-amber-950 text-sm">
+                    {authErrorCode === 'auth/unauthorized-domain' 
+                      ? 'Autorización de Dominio en Firebase Requerida' 
+                      : 'Aviso sobre Inicio de Sesión'}
+                  </h4>
+                  <p className="mt-1 text-amber-900 leading-relaxed">
+                    {authError}
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={clearAuthError}
+                className="text-amber-700 hover:text-amber-900 font-bold px-2 py-1 rounded bg-amber-100 hover:bg-amber-200 transition cursor-pointer shrink-0"
+              >
+                ✕
+              </button>
             </div>
-            <button
-              onClick={clearAuthError}
-              className="text-rose-700 hover:text-rose-900 font-bold px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 transition cursor-pointer shrink-0"
-            >
-              Entendido ✕
-            </button>
+
+            {/* If unauthorized domain, give 1-click tools and step-by-step instructions */}
+            {authErrorCode === 'auth/unauthorized-domain' && (
+              <div className="p-3 rounded-xl bg-white border border-amber-200 text-slate-800 space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[#FAF8F5] p-2.5 rounded-lg border border-[#DDD8CD]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold text-slate-700">Tu dominio actual:</span>
+                    <code className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 font-mono font-bold text-xs select-all">
+                      {typeof window !== 'undefined' ? window.location.hostname : ''}
+                    </code>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        copyText(window.location.hostname);
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs flex items-center justify-center gap-1 cursor-pointer transition shrink-0"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{isCopied ? '¡Copiado!' : 'Copiar Dominio'}</span>
+                  </button>
+                </div>
+
+                <div className="space-y-1 text-[11.5px] text-slate-700">
+                  <p className="font-semibold text-slate-900">Pasos para autorizarlo (solo se hace 1 vez):</p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-600 pl-1">
+                    <li>Abre los ajustes de Firebase pulsando el botón azul de abajo.</li>
+                    <li>En la pestaña <strong>Settings</strong>, baja a la sección <strong>Authorized domains</strong> (Dominios autorizados).</li>
+                    <li>Pulsa en <strong>Add domain</strong>, pega tu dominio copiado y pulsa <strong>Save</strong>.</li>
+                  </ol>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <a
+                    href="https://console.firebase.google.com/project/true-charger-4smzh/authentication/settings"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-800 text-white font-semibold text-xs transition flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <span>🔗 Abrir Firebase Console (Settings)</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => enableLocalProfile('Mi Cartera (Local)')}
+                    className="px-3 py-1.5 rounded-lg bg-[#EFECE4] hover:bg-[#E5E1D5] text-slate-800 font-semibold text-xs transition cursor-pointer"
+                  >
+                    👤 Continuar con Perfil en este Navegador
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

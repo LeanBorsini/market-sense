@@ -30,13 +30,15 @@ export interface SyncedUserData {
 }
 
 interface AuthContextType {
-  currentUser: User | null;
+  currentUser: (User | { uid: string; displayName: string | null; email: string | null; photoURL: string | null }) | null;
   isLoading: boolean;
   isLoggingIn: boolean;
   authError: string | null;
+  authErrorCode: string | null;
   clearAuthError: () => void;
   cloudSynced: boolean;
   loginWithGoogle: () => Promise<void>;
+  enableLocalProfile: (name?: string) => void;
   logout: () => Promise<void>;
   saveUserDataToCloud: (data: Partial<SyncedUserData>) => Promise<void>;
   cloudData: SyncedUserData | null;
@@ -45,27 +47,40 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<(User | { uid: string; displayName: string | null; email: string | null; photoURL: string | null }) | null>(() => {
+    try {
+      const savedLocal = localStorage.getItem('marketsense_local_user');
+      return savedLocal ? JSON.parse(savedLocal) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authErrorCode, setAuthErrorCode] = useState<string | null>(null);
   const [cloudSynced, setCloudSynced] = useState(false);
   const [cloudData, setCloudData] = useState<SyncedUserData | null>(null);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
+      if (user) {
+        setCurrentUser(user);
+        localStorage.removeItem('marketsense_local_user');
+      }
       setIsLoading(false);
     });
 
     return () => unsubscribeAuth();
   }, []);
 
-  // Listen to Firestore changes in real-time when user is logged in
+  // Listen to Firestore changes in real-time when user is logged in with real Firebase Auth
   useEffect(() => {
-    if (!currentUser) {
-      setCloudData(null);
-      setCloudSynced(false);
+    if (!currentUser || currentUser.uid.startsWith('local-')) {
+      if (!currentUser) {
+        setCloudData(null);
+        setCloudSynced(false);
+      }
       return;
     }
 
@@ -91,24 +106,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribeSnapshot();
   }, [currentUser]);
 
-  const clearAuthError = () => setAuthError(null);
+  const clearAuthError = () => {
+    setAuthError(null);
+    setAuthErrorCode(null);
+  };
+
+  const enableLocalProfile = (customName?: string) => {
+    const localUser = {
+      uid: `local-${Date.now()}`,
+      displayName: customName || 'Mi Cartera',
+      email: null,
+      photoURL: null,
+    };
+    setCurrentUser(localUser);
+    localStorage.setItem('marketsense_local_user', JSON.stringify(localUser));
+    clearAuthError();
+  };
 
   const loginWithGoogle = async () => {
     setIsLoggingIn(true);
     setAuthError(null);
+    setAuthErrorCode(null);
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.error('Firebase Auth Sign-In Error:', error);
+      const code = error?.code || '';
+      setAuthErrorCode(code);
       let friendlyMessage = 'No se pudo iniciar sesión con Google.';
       
-      if (error?.code === 'auth/popup-blocked') {
-        friendlyMessage = 'El navegador bloqueó la ventana emergente de Google. Pulsa en la barra de direcciones de tu navegador para permitir las ventanas emergentes (pop-ups) e inténtalo de nuevo.';
-      } else if (error?.code === 'auth/unauthorized-domain') {
+      if (code === 'auth/unauthorized-domain') {
         friendlyMessage = 'Dominio web no autorizado en Firebase. Para habilitar el inicio de sesión en este dominio, debes añadirlo en Firebase Console -> Authentication -> Settings -> Authorized Domains.';
-      } else if (error?.code === 'auth/popup-closed-by-user') {
+      } else if (code === 'auth/popup-blocked') {
+        friendlyMessage = 'El navegador bloqueó la ventana emergente de Google. Pulsa en la barra de direcciones de tu navegador para permitir las ventanas emergentes (pop-ups) e inténtalo de nuevo.';
+      } else if (code === 'auth/popup-closed-by-user') {
         friendlyMessage = 'La ventana de inicio de sesión fue cerrada antes de completar la verificación.';
-      } else if (error?.code === 'auth/cancelled-popup-request') {
+      } else if (code === 'auth/cancelled-popup-request') {
         friendlyMessage = 'Ya hay una solicitud de inicio de sesión en curso en este momento.';
       } else if (error?.message) {
         friendlyMessage = `Aviso de Google: ${error.message}`;
@@ -122,7 +155,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await signOut(auth);
+      localStorage.removeItem('marketsense_local_user');
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
+      setCurrentUser(null);
       setCloudData(null);
       setCloudSynced(false);
     } catch (error) {
@@ -159,9 +196,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         isLoggingIn,
         authError,
+        authErrorCode,
         clearAuthError,
         cloudSynced,
         loginWithGoogle,
+        enableLocalProfile,
         logout,
         saveUserDataToCloud,
         cloudData,

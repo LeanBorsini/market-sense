@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -109,11 +109,21 @@ export default function App() {
     return ['OHLA', 'VOO', 'BTC', 'TSM', 'SAN', 'REP'];
   });
 
+  const isSyncingFromCloudRef = useRef(false);
+  const prevTrackedTickersRef = useRef<string[]>(trackedTickers);
+
   // Sync personal watchlist and custom prices from cloud when user logs in
   useEffect(() => {
     if (currentUser && cloudData) {
       if (cloudData.keyTickers && Array.isArray(cloudData.keyTickers) && cloudData.keyTickers.length > 0) {
-        setTrackedTickers(cloudData.keyTickers);
+        const areSame = 
+          cloudData.keyTickers.length === trackedTickers.length &&
+          cloudData.keyTickers.every((t, i) => t === trackedTickers[i]);
+        if (!areSame) {
+          isSyncingFromCloudRef.current = true;
+          prevTrackedTickersRef.current = cloudData.keyTickers;
+          setTrackedTickers(cloudData.keyTickers);
+        }
       }
       if (cloudData.customPrices && typeof cloudData.customPrices === 'object') {
         const mappedPrices: Record<string, string> = {};
@@ -126,10 +136,22 @@ export default function App() {
     }
   }, [currentUser, cloudData]);
 
-  // Save changes to localStorage and Cloud (if logged in)
+  // Save changes to localStorage and Cloud (only when user actively modifies them)
   useEffect(() => {
     localStorage.setItem('marketsense_tracked_tickers_v2', JSON.stringify(trackedTickers));
-    if (currentUser) {
+    
+    // If update came from cloudData sync, skip echoing back to the cloud
+    if (isSyncingFromCloudRef.current) {
+      isSyncingFromCloudRef.current = false;
+      return;
+    }
+
+    const areSame = 
+      prevTrackedTickersRef.current.length === trackedTickers.length &&
+      prevTrackedTickersRef.current.every((t, i) => t === trackedTickers[i]);
+
+    if (!areSame && currentUser && !currentUser.uid.startsWith('local-')) {
+      prevTrackedTickersRef.current = trackedTickers;
       saveUserDataToCloud({ keyTickers: trackedTickers });
     }
   }, [trackedTickers, currentUser]);

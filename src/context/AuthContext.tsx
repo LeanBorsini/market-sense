@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import {
   auth,
   db,
@@ -9,6 +9,7 @@ import {
   doc,
   setDoc,
   onSnapshot,
+  disableNetwork,
   handleFirestoreError,
   OperationType,
   User,
@@ -28,6 +29,27 @@ export interface SyncedUserData {
     telegramConfig?: { target: string };
   }>;
 }
+
+const getTodayUtcString = () => new Date().toISOString().slice(0, 10);
+
+const getCachedCloudData = (uid: string): SyncedUserData | null => {
+  try {
+    const saved = localStorage.getItem(`marketsense_cached_cloud_data_${uid}`);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedCloudData = (uid: string, data: Partial<SyncedUserData>) => {
+  try {
+    const current = getCachedCloudData(uid) || { keyTickers: [], activeProfileId: 'user-main', customPrices: {} };
+    const updated = { ...current, ...data };
+    localStorage.setItem(`marketsense_cached_cloud_data_${uid}`, JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Failed to cache cloud data locally', e);
+  }
+};
 
 interface AuthContextType {
   currentUser: (User | { uid: string; displayName: string | null; email: string | null; photoURL: string | null }) | null;
@@ -62,6 +84,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [cloudSynced, setCloudSynced] = useState(false);
   const [cloudData, setCloudData] = useState<SyncedUserData | null>(null);
 
+  const isQuotaExceededRef = useRef<boolean>(false);
+  const lastSavedPayloadRef = useRef<string>('');
+  const saveDebounceTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    try {
+      const today = getTodayUtcString();
+      if (localStorage.getItem('marketsense_fs_quota_day') === today) {
+        isQuotaExceededRef.current = true;
+        disableNetwork(db).catch(() => {});
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, []);
+
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -84,26 +122,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    const userDocRef = doc(db, 'users', currentUser.uid);
-    const unsubscribeSnapshot = onSnapshot(
-      userDocRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data() as SyncedUserData;
-          setCloudData(data);
-          setCloudSynced(true);
-        } else {
-          // Document does not exist yet on cloud, we keep cloudSynced true
-          setCloudSynced(true);
-        }
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
-        setCloudSynced(false);
-      }
-    );
+    // Always immediately load cached data so the UI is responsive and data is preserved
+    const cached = getCachedCloudData(currentUser.uid);
+    if (cached) {
+      setCloudData(cached);
+      setCloudSynced(true);
+    }
 
-    return () => unsubscribeSnapshot();
+    // If quota was already marked as exceeded today, skip onSnapshot and disable network
+    // to prevent continuous retry backoff loops
+    const today = getTodayUtcString();
+    if (isQuotaExceededRef.current || localStorage.getItem('marketsense_fs_quota_day') === today) {
+      isQuotaExceededRef.current = true;
+      disableNetwork(db).catch(() => {});
+      setCloudSynced(true);
+      return;
+    }
+
+    const userDocRef = doc(db, 'users', currentUser.uid);
+    let isUnsubscribed = false;
+    let unsubscribeSnapshot: (() => void) | null = null;
+
+    try {
+      unsubscribeSnapshot = onSnapshot(
+        userDocRef,
+        (snapshot) => {
+          if (isUnsubscribed) return;
+          if (snapshot.exists()) {
+            const data = snapshot.data() as SyncedUserData;
+            setCloudData(data);
+            setCachedCloudData(currentUser.uid, data);
+            setCloudSynced(true);
+          } else {
+            setCloudSynced(true);
+          }
+        },
+        (error: any) => {
+          if (isUnsubscribed) return;
+          const errCode = error?.code || '';
+          const errMsg = error?.message || '';
+          if (errCode === 'resource-exhausted' || errMsg.includes('Quota limit exceeded')) {
+            try {
+              localStorage.setItem('marketsense_fs_quota_day', getTodayUtcString());
+            } catch {
+              // Ignore
+            }
+            isQuotaExceededRef.current = true;
+            isUnsubscribed = true;
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+            disableNetwork(db).catch(() => {});
+            setCloudSynced(true);
+            return;
+          }
+          handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
+          setCloudSynced(false);
+        }
+      );
+    } catch {
+      setCloudSynced(true);
+    }
+
+    return () => {
+      isUnsubscribed = true;
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
   }, [currentUser]);
 
   const clearAuthError = () => {
@@ -169,24 +251,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const saveUserDataToCloud = async (data: Partial<SyncedUserData>) => {
     if (!currentUser) return;
-    const path = `users/${currentUser.uid}`;
-    try {
-      await setDoc(
-        doc(db, 'users', currentUser.uid),
-        {
-          ...data,
-          userId: currentUser.uid,
-          email: currentUser.email || '',
-          displayName: currentUser.displayName || '',
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-      setCloudSynced(true);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
-      setCloudSynced(false);
+
+    // 1. Immediately cache in local storage to guarantee data permanence
+    setCachedCloudData(currentUser.uid, data);
+
+    // 2. Prevent redundant writes of unchanged payloads
+    const payloadKey = JSON.stringify(data);
+    if (lastSavedPayloadRef.current === payloadKey) {
+      return;
     }
+    lastSavedPayloadRef.current = payloadKey;
+
+    // 3. If local user or quota was marked exceeded today, maintain local sync smoothly
+    const today = getTodayUtcString();
+    if (
+      currentUser.uid.startsWith('local-') ||
+      isQuotaExceededRef.current ||
+      localStorage.getItem('marketsense_fs_quota_day') === today
+    ) {
+      setCloudSynced(true);
+      return;
+    }
+
+    // 4. Debounce write to Firestore by 400ms to consolidate rapid state changes
+    if (saveDebounceTimeoutRef.current) {
+      clearTimeout(saveDebounceTimeoutRef.current);
+    }
+
+    saveDebounceTimeoutRef.current = setTimeout(async () => {
+      const path = `users/${currentUser.uid}`;
+      try {
+        await setDoc(
+          doc(db, 'users', currentUser.uid),
+          {
+            ...data,
+            userId: currentUser.uid,
+            email: currentUser.email || '',
+            displayName: currentUser.displayName || '',
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+        setCloudSynced(true);
+      } catch (error: any) {
+        const errCode = error?.code || '';
+        const errMsg = error?.message || '';
+        if (errCode === 'resource-exhausted' || errMsg.includes('Quota limit exceeded')) {
+          try {
+            localStorage.setItem('marketsense_fs_quota_day', getTodayUtcString());
+          } catch {
+            // Ignore
+          }
+          isQuotaExceededRef.current = true;
+          disableNetwork(db).catch(() => {});
+          setCloudSynced(true);
+          return;
+        }
+        handleFirestoreError(error, OperationType.WRITE, path);
+        setCloudSynced(false);
+      }
+    }, 400);
   };
 
   return (

@@ -73,12 +73,16 @@ export interface UserProfile {
 
 export type MarketSector = 'Todos' | 'Asia & Emergentes' | 'Bolsa USA' | 'Bolsa Europea & España' | 'Materias Primas & Energía' | 'Cripto & Web3';
 
+export type GemType = 'small_cap_tech' | 'panic_turnaround' | 'niche_monopoly';
+
 export interface OpportunityScan {
   ticker: string;
   name: string;
   category: 'Acciones' | 'Índices' | 'Cripto' | 'Materias Primas';
   marketSector: 'Asia & Emergentes' | 'Bolsa USA' | 'Bolsa Europea & España' | 'Materias Primas & Energía' | 'Cripto & Web3';
   currentPrice: string;
+  targetPriceEstimated?: string; // Precio medio / objetivo estimado de valoración
+  exchangeAvailableIBKR?: string; // Bolsa y accesibilidad en Interactive Brokers
   catalystTitle: string;
   whyIsOpportunity: string;
   ebitdaStrength: string;
@@ -87,6 +91,11 @@ export interface OpportunityScan {
   riskRewardRatio: string;
   dateDetected: string;
   isFavorited?: boolean;
+  gemType?: GemType;
+  secretEdge?: string; // Foso tecnológico o patente que codician las Big Tech
+  cashBurnVerdict?: string; // Filtro de quema de caja
+  allocationStrategy?: string; // Estrategia proporcional universal (% de cartera)
+  ticket500Strategy?: string; // Compatible con cálculos de ticket
 }
 
 export const INITIAL_ASSET_DATABASE: Asset[] = [
@@ -686,7 +695,152 @@ export const OPPORTUNITIES_DATABASE: OpportunityScan[] = [
     debtProfile: 'Red descentralizada sin pasivos corporativos.',
     potentialUpside: '+55% en ciclo de adopción Web3',
     riskRewardRatio: '1 : 3.2 (Mayor beta que Bitcoin para carteras cripto)',
-    dateDetected: 'Ayer'
+    dateDetected: 'Ayer',
+    gemType: 'niche_monopoly',
+    secretEdge: 'Ecosistema de pagos descentralizados ultrarrápidos con comisiones inferiores a $0.001.',
+    cashBurnVerdict: 'No quema caja corporativa; red autónoma autosuficiente.',
+    targetPriceEstimated: '$280.00 (Techo de canal en ciclo alcista)',
+    allocationStrategy: 'Asignación sugerida: 1% a 3% de tu capital total. Volatilidad alta pero asimetría en adopción masiva.'
+  },
+  {
+    ticker: 'SONY',
+    name: 'Sony Group Corp (Monopolio Sensores Imagen & Fotónica IA)',
+    category: 'Acciones',
+    marketSector: 'Asia & Emergentes',
+    currentPrice: '$94.20',
+    targetPriceEstimated: '$132.00 (Valoración por múltiplos de software y semiconductores)',
+    exchangeAvailableIBKR: 'Bolsa de Tokio (6758.T) y NYSE ADR (SONY) en IBKR',
+    catalystTitle: 'Demanda disparada de sensores de visión computacional para robótica, coches y smartphones',
+    whyIsOpportunity: 'Más del 55% de todos los sensores de imagen CMOS de alta gama del planeta (incluyendo todos los iPhones y cámaras profesionales) son fabricados por Sony. Un foso tecnológico japonés imposible de replicar.',
+    ebitdaStrength: 'EBITDA superior a 1.2 billones de yenes (~$8.500M) con márgenes estables.',
+    debtProfile: 'Posición de caja neta industrial muy saneada y calificación crediticia A+.',
+    potentialUpside: '+40% hacia su valoración intrínseca',
+    riskRewardRatio: '1 : 4.2 (Monopolio asiático de máxima calidad en IBKR)',
+    dateDetected: 'Escaneo Hoy',
+    gemType: 'niche_monopoly',
+    secretEdge: 'Patentes mundiales de sensores de imagen apilados indispensables para cámaras de IA y visión autónoma.',
+    cashBurnVerdict: 'Cero quema de caja. Generador continuo de miles de millones en flujo libre al año.',
+    allocationStrategy: 'Asignación sugerida: 2% a 5% de tu cartera. Calidad defensiva con viento de cola tecnológico en IBKR.'
+  },
+  {
+    ticker: 'TM',
+    name: 'Toyota Motor Corp (El Gigante de la Movilidad Híbrida & Caja Neta)',
+    category: 'Acciones',
+    marketSector: 'Asia & Emergentes',
+    currentPrice: '$188.50',
+    targetPriceEstimated: '$245.00 (Múltiplo de 10x beneficios normalizados)',
+    exchangeAvailableIBKR: 'Bolsa de Tokio (7203.T) y NYSE ADR (TM) en IBKR',
+    catalystTitle: 'Triunfo comercial de la tecnología híbrida frente a la desaceleración del vehículo 100% eléctrico',
+    whyIsOpportunity: 'Toyota es la empresa automovilística más rentable del mundo: vende más de 10 millones de vehículos al año con un margen operativo del 11% y acumula más de $30.000M en caja neta en su negocio industrial.',
+    ebitdaStrength: 'Beneficio operativo récord superior a $35.000M anuales.',
+    debtProfile: 'Fortaleza financiera equivalente a calificación soberana AAA.',
+    potentialUpside: '+30% + 3.2% de dividendo anual',
+    riskRewardRatio: '1 : 4.0 (Pilar defensivo de Asia para comprar en IBKR)',
+    dateDetected: 'Escaneo Hoy',
+    gemType: 'niche_monopoly',
+    secretEdge: 'Red de producción global imbatible en costes y fiabilidad mecánica por más de 30 años.',
+    cashBurnVerdict: 'La mayor máquina de generar flujo de caja de la industria mundial del motor.',
+    allocationStrategy: 'Asignación sugerida: 3% a 6% de tu cartera. Máxima solvencia patrimonial en Interactive Brokers.'
+  },
+  {
+    ticker: 'INTC',
+    name: 'Intel Corporation (Reestructuración & Fábricas Soberanas CHIPS Act)',
+    category: 'Acciones',
+    marketSector: 'Bolsa USA',
+    currentPrice: '$21.80',
+    targetPriceEstimated: '$38.00 - $45.00 (Precio medio histórico de recuperación)',
+    exchangeAvailableIBKR: 'NASDAQ (INTC) en IBKR',
+    catalystTitle: 'Alianzas de empaquetado avanzado para Amazon AWS y subsidios federales de $8.500M de EE.UU.',
+    whyIsOpportunity: 'Intel demostró la fuerza de la asimetría cuando el pánico la llevó a cotizar por debajo del valor de sus propias fábricas. Hoy no se trata de esperar a 19$, sino de evaluar su consolidación actual: EE.UU. no puede permitir que su única fundición soberana caiga, y las alianzas con gigantes de la nube respaldan su plan a medio plazo.',
+    ebitdaStrength: 'Negocio tradicional de centros de datos y PCs generando más de $12.000M en flujo operativo.',
+    debtProfile: 'Inyecciones directas de la CHIPS Act y entrada de capital de Apollo Global para financiar sus plantas.',
+    potentialUpside: '+75% a +105% en maduración de su plan de fundición 18A',
+    riskRewardRatio: '1 : 3.8 (Turnaround industrial con respaldo geopolítico de EE.UU.)',
+    dateDetected: 'Escaneo Hoy',
+    gemType: 'panic_turnaround',
+    secretEdge: 'La única empresa occidental con capacidad física de fundición a gran escala en territorio de EE.UU. y Europa.',
+    cashBurnVerdict: 'Fase intensiva de inversión cubierta por ayudas gubernamentales y acuerdos de co-inversión privada.',
+    allocationStrategy: 'Asignación sugerida: 2% a 4% de tu cartera total. Posición asimétrica con horizonte a 18-24 meses.'
+  },
+  {
+    ticker: 'FN',
+    name: 'Fabrinet (La Empresa Secreta de Fibra Óptica para Nvidia)',
+    category: 'Acciones',
+    marketSector: 'Bolsa USA',
+    currentPrice: '$242.00',
+    targetPriceEstimated: '$320.00 (Consenso analistas por ciclo de IA óptica)',
+    exchangeAvailableIBKR: 'NYSE (FN) en IBKR',
+    catalystTitle: 'Crecimiento silencioso del +38% fabricando los transceptores de IA',
+    whyIsOpportunity: 'Casi nadie en la calle ha oído hablar de Fabrinet, pero es la fábrica en Tailandia que manufactura físicamente las conexiones ópticas de alta velocidad que Nvidia y Cisco necesitan en sus clusters de servidores de IA.',
+    ebitdaStrength: 'Márgenes de rentabilidad operativa del 12% con ingresos récord de más de $2.800M.',
+    debtProfile: 'Caja neta positiva de más de $500M. Cero deuda financiera peligrosa.',
+    potentialUpside: '+42% por expansión de centros de datos de IA',
+    riskRewardRatio: '1 : 4.0 (Small/Mid Cap de calidad suprema sin humo)',
+    dateDetected: 'Escaneo Hoy',
+    gemType: 'small_cap_tech',
+    secretEdge: 'Monopolio en empaquetado y fabricación óptica de precisión. Cliente exclusivo de Nvidia para cables ópticos de 800G.',
+    cashBurnVerdict: 'Cero quema de caja. Genera más de $250M de flujo libre al año.',
+    allocationStrategy: 'Asignación sugerida: 1.5% a 3% de tu capital. Crecimiento compuesto a rebufo de la IA sin múltiplos desorbitados.'
+  },
+  {
+    ticker: 'POWI',
+    name: 'Power Integrations (Chips de GaN y Ultra-Eficiencia Energética)',
+    category: 'Acciones',
+    marketSector: 'Bolsa USA',
+    currentPrice: '$64.50',
+    targetPriceEstimated: '$95.00 (Múltiplo de OPA o ciclo de renovación de centros de datos)',
+    exchangeAvailableIBKR: 'NASDAQ (POWI) en IBKR',
+    catalystTitle: 'Patentes clave en nitruro de galio para cargadores y servidores',
+    whyIsOpportunity: 'Empresa tecnológica pequeña y desconocida con más de 800 patentes en conversión de alta tensión. Sus chips permiten que los centros de datos de IA y los cargadores gasten la mitad de calor y electricidad.',
+    ebitdaStrength: 'Margen bruto superior al 52% de forma continuada durante más de 10 años.',
+    debtProfile: 'Balance con cero deuda bancaria y más de $300M en tesorería pura.',
+    potentialUpside: '+50% ante ciclo de renovación de eficiencia energética',
+    riskRewardRatio: '1 : 3.8 (Foso tecnológico que codician Texas Instruments o Qualcomm)',
+    dateDetected: 'Escaneo Hoy',
+    gemType: 'small_cap_tech',
+    secretEdge: 'Patentes de tecnología PowiGaN irremplazables en fuentes de alimentación de alta eficiencia.',
+    cashBurnVerdict: 'Impecable: Más de 20 años consecutivos con flujo de caja positivo. No diluye a los accionistas.',
+    allocationStrategy: 'Asignación sugerida: 1.5% a 3% de tu capital. Joya tecnológica con patentes de alto valor de adquisición.'
+  },
+  {
+    ticker: 'ALNY',
+    name: 'Alnylam Pharmaceuticals (Pionera Mundial en Terapias de ARN)',
+    category: 'Acciones',
+    marketSector: 'Bolsa USA',
+    currentPrice: '$282.00',
+    targetPriceEstimated: '$380.00 (Prima de adquisición por Big Pharma)',
+    exchangeAvailableIBKR: 'NASDAQ (ALNY) en IBKR',
+    catalystTitle: 'Candidata histórica Nº1 de compra por parte de Pfizer, Novartis o Roche',
+    whyIsOpportunity: 'Ha inventado y patentado la técnica de silenciamiento génico por ARN (RNAi) para curar enfermedades raras del hígado y corazón. Sus fármacos ya facturan más de $1.500M con aprobación de la FDA.',
+    ebitdaStrength: 'Creciendo ingresos al +35% anual con royalties de patentes mundiales.',
+    debtProfile: 'Más de $2.000M en caja líquida para financiar sus ensayos sin riesgo de quiebra.',
+    potentialUpside: '+40% en ventas orgánicas o +60% si se formaliza una OPA de compra',
+    riskRewardRatio: '1 : 3.6 (Biotecnología con productos reales en farmacias, no humo)',
+    dateDetected: 'Escaneo Ayer',
+    gemType: 'small_cap_tech',
+    secretEdge: 'Monopolio en patentes de RNAi. Es el activo más codiciado de la industria farmacéutica global.',
+    cashBurnVerdict: 'Punto de equilibrio (break-even) operativo alcanzado. Riesgo de dilución prácticamente nulo.',
+    allocationStrategy: 'Asignación sugerida: 1% a 3% de tu cartera. Biotecnología con ingresos comerciales y patentes exclusivas.'
+  },
+  {
+    ticker: 'OHLA',
+    name: 'OHLA (Asimetría en España / Contratos de $8.200M en EE.UU.)',
+    category: 'Acciones',
+    marketSector: 'Bolsa Europea & España',
+    currentPrice: '0.3520 €',
+    targetPriceEstimated: '0.85 € - 1.15 € (Precio medio de valoración contable en caso de normalización)',
+    exchangeAvailableIBKR: 'Bolsa de Madrid (OHLA.MC) en IBKR',
+    catalystTitle: 'Desbloqueo de avales bancarios y ahorro de 18M€/año en intereses de bonos',
+    whyIsOpportunity: 'Cotiza a precios de liquidación por el miedo mediático, pero tiene 8.200M€ en obras adjudicadas en EE.UU. con Santander, CaixaBank y Sabadell cerrando la liberación de líneas comerciales.',
+    ebitdaStrength: 'EBITDA operativo de 130-145 M€/año con obras al 7% de margen.',
+    debtProfile: 'Reestructuración de bonos para reducir la deuda a niveles confortables.',
+    potentialUpside: '+140% a +220% hacia su valoración contable de normalización (0.85€ - 1.15€)',
+    riskRewardRatio: '1 : 4.8 (La mayor asimetría del mercado continuo español)',
+    dateDetected: 'Hoy',
+    gemType: 'panic_turnaround',
+    secretEdge: 'Licencias federales y estatales para construir autopistas y hospitales en Nueva York, Florida y California.',
+    cashBurnVerdict: 'Desbloqueo de avales libera anticipos de clientes en efectivo.',
+    allocationStrategy: 'Asignación sugerida: 1% a 4% de tu capital. Posición controlada para capturar el recorrido de la reestructuración.'
   }
 ];
 

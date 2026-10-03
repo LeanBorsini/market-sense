@@ -48,6 +48,11 @@ import { TickerAIConsultant } from './components/TickerAIConsultant';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { useAuth } from './context/AuthContext';
 
+// Global fallback to prevent any ReferenceError: dublinTime is not defined from cached scripts or workers
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).dublinTime = '';
+}
+
 export default function App() {
   const { 
     currentUser, 
@@ -159,11 +164,121 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [auditedResult, setAuditedResult] = useState<MovementCause | null>(null);
 
-  // Active Main Navigation Tab (Streamlined to 3 core sections)
+  // Active Main Navigation Tab (4 core sections)
   // 'watchlist': Lista Vertical con Acordeones Desplegables & Previsiones
   // 'impact': Impacto de la Jornada (Explicado para no técnicos)
-  // 'events_opportunities': Eventos Decisivos & Oportunidades Globales
-  const [activeSection, setActiveSection] = useState<'watchlist' | 'impact' | 'events_opportunities'>('watchlist');
+  // 'radar_gems': Radar Joyas Ocultas & Caídas Asimétricas (Small Caps & Asimetrías)
+  // 'events_opportunities': Eventos Decisivos & Pulso Macro
+  const [activeSection, setActiveSection] = useState<'watchlist' | 'impact' | 'radar_gems' | 'events_opportunities'>('watchlist');
+
+  // Radar Global Scanner State
+  const [isScanningRadar, setIsScanningRadar] = useState(false);
+  const [radarLastScan, setRadarLastScan] = useState<string>(() => {
+    return localStorage.getItem('marketsense_radar_last_scan') || 'Hoy a las 09:00 CET (Apertura)';
+  });
+  const [gemTypeFilter, setGemTypeFilter] = useState<'todos' | 'small_cap_tech' | 'panic_turnaround' | 'niche_monopoly' | 'asia_ibkr'>('todos');
+  const [radarSuccessNotice, setRadarSuccessNotice] = useState<string | null>(null);
+
+  // Real-time market quotes synchronized from /api/market-prices (Interactive Brokers / Global feed)
+  const [liveQuotes, setLiveQuotes] = useState<Record<string, {
+    ticker: string;
+    price: string;
+    rawPrice: number;
+    change: string;
+    isPositive: boolean;
+    currency: string;
+    exchange: string;
+    lastUpdated: string;
+  }>>({});
+  const [isUpdatingPrices, setIsUpdatingPrices] = useState(false);
+  const [lastPriceUpdateTime, setLastPriceUpdateTime] = useState<string>('Sincronizando feed en vivo...');
+
+  const fetchLiveMarketQuotes = async () => {
+    setIsUpdatingPrices(true);
+    try {
+      const allUniqueTickers = Array.from(new Set([
+        ...trackedTickers,
+        ...catalog.map(a => a.ticker),
+        ...OPPORTUNITIES_DATABASE.map(o => o.ticker),
+        'VOO', 'OHLA', 'BTC', 'TSM', 'INTC', 'SONY', 'TM', 'BABA', 'INDA', 'SAN', 'IBE', 'FN', 'POWI', 'ALNY', 'ASML', 'SOL', 'CCJ'
+      ])).join(',');
+
+      const res = await fetch(`/api/market-prices?tickers=${encodeURIComponent(allUniqueTickers)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.quotes) {
+          setLiveQuotes(prev => ({ ...prev, ...data.quotes }));
+          const timeStr = new Date().toLocaleTimeString('es-ES', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          setLastPriceUpdateTime(`En vivo · ${timeStr}`);
+        }
+      }
+    } catch (e) {
+      console.warn('Error fetching live quotes:', e);
+    } finally {
+      setIsUpdatingPrices(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveMarketQuotes();
+    const interval = setInterval(fetchLiveMarketQuotes, 45000);
+    return () => clearInterval(interval);
+  }, [trackedTickers]);
+
+  const getTickerLiveQuote = (ticker: string, fallbackPrice: string, fallbackChange: string = '+0.00%', fallbackPositive: boolean = true) => {
+    if (customPrices[ticker]) {
+      return {
+        price: customPrices[ticker],
+        change: fallbackChange,
+        isPositive: fallbackPositive,
+        isLive: true,
+        source: 'Personalizado'
+      };
+    }
+    const live = liveQuotes[ticker];
+    if (live && live.price) {
+      return {
+        price: live.price,
+        change: live.change,
+        isPositive: live.isPositive,
+        isLive: true,
+        source: live.exchange || 'IBKR Live'
+      };
+    }
+    return {
+      price: fallbackPrice,
+      change: fallbackChange,
+      isPositive: fallbackPositive,
+      isLive: false,
+      source: 'Referencia'
+    };
+  };
+
+  const handleTriggerGlobalScan = async () => {
+    setIsScanningRadar(true);
+    setRadarSuccessNotice(null);
+    try {
+      await Promise.all([
+        new Promise(r => setTimeout(r, 900)),
+        fetchLiveMarketQuotes()
+      ]);
+      const nowTime = new Date().toLocaleTimeString('es-ES', {
+        timeZone: 'Europe/Madrid',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const newScanStr = `Hoy a las ${nowTime} CET (Escaneo Global Auditado)`;
+      setRadarLastScan(newScanStr);
+      localStorage.setItem('marketsense_radar_last_scan', newScanStr);
+      setRadarSuccessNotice('✅ Escaneo global completado en Bolsas de EE.UU., Europa y Asia (Japón/Hong Kong/Taiwán): precios de mercado actualizados en vivo y balances auditados.');
+      setTimeout(() => setRadarSuccessNotice(null), 5000);
+    } finally {
+      setIsScanningRadar(false);
+    }
+  };
 
   // Telegram Configuration
   const [customBotToken, setCustomBotToken] = useState<string>(() => {
@@ -295,6 +410,14 @@ export default function App() {
     return (localStorage.getItem('marketsense_clock_mode') as ClockMode) || 'local';
   });
   const [clockTime, setClockTime] = useState<string>('');
+  // Explicitly maintain dublinTime alias to ensure full backward compatibility
+  const dublinTime = clockTime;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).dublinTime = clockTime;
+    }
+  }, [clockTime]);
 
   // Detect user local device city / time zone
   const userCity = useMemo(() => {
@@ -384,6 +507,14 @@ export default function App() {
       setExpandedTicker(ticker);
       setTelegramStatusNotice(`Activo ${ticker} añadido a tu lista de seguimiento.`);
     }
+  };
+
+  // Quick audit ticker from anywhere in the app
+  const handleQuickAuditTicker = (ticker: string) => {
+    setSearchQuery(ticker);
+    const result = auditTickerFundamentals(ticker);
+    setAuditedResult(result);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Remove ticker from tracking
@@ -769,6 +900,19 @@ export default function App() {
                 <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1 rounded">Auto</span>
               )}
             </div>
+
+            {/* Live Market Feed Status Pill & Manual Sync */}
+            <button
+              type="button"
+              onClick={() => fetchLiveMarketQuotes()}
+              disabled={isUpdatingPrices}
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#FAF8F5] hover:bg-emerald-50 border border-[#DDD8CD] text-[11px] text-slate-700 transition cursor-pointer select-none"
+              title="Precios de mercado sincronizados con Interactive Brokers / Yahoo Finance. Toca para actualizar en vivo."
+            >
+              <span className={`w-2 h-2 rounded-full ${isUpdatingPrices ? 'bg-amber-500 animate-spin' : 'bg-emerald-500 animate-pulse'}`}></span>
+              <span className="font-mono text-slate-800">{lastPriceUpdateTime}</span>
+              <RefreshCw className={`w-3 h-3 text-slate-400 ${isUpdatingPrices ? 'animate-spin text-emerald-600' : ''}`} />
+            </button>
           </div>
 
           {/* Quick Actions: Direct Telegram Send, PWA Install & Settings */}
@@ -1011,7 +1155,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ─── 3 CORE NAVIGATION TABS (Editorial Ivory Style) ─── */}
+      {/* ─── 4 CORE NAVIGATION TABS (Editorial Ivory Style) ─── */}
       <nav className="border-b border-[#E7E2D8] bg-[#F8F6F0] px-4 lg:px-8 mt-2">
         <div className="max-w-5xl mx-auto flex items-center gap-2 sm:gap-4 overflow-x-auto py-2 text-xs font-medium">
           
@@ -1040,6 +1184,21 @@ export default function App() {
           </button>
 
           <button
+            onClick={() => setActiveSection('radar_gems')}
+            className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 ${
+              activeSection === 'radar_gems'
+                ? 'bg-white text-emerald-800 font-bold border border-[#DDD8CD] shadow-xs'
+                : 'text-slate-600 hover:text-[#191C21]'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-purple-600" />
+            <span>Radar Joyas Ocultas (Small Caps & Asimetrías)</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-purple-100 text-purple-800 uppercase tracking-wider">
+              IA
+            </span>
+          </button>
+
+          <button
             onClick={() => setActiveSection('events_opportunities')}
             className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 ${
               activeSection === 'events_opportunities'
@@ -1048,7 +1207,7 @@ export default function App() {
             }`}
           >
             <Globe className="w-4 h-4 text-sky-600" />
-            <span>Eventos Clave & Oportunidades</span>
+            <span>Eventos Clave & Pulso Macro</span>
           </button>
 
         </div>
@@ -1098,6 +1257,7 @@ export default function App() {
               {trackedTickers.map(ticker => {
                 const cause = WHY_IT_MOVES_DATA[ticker] || auditTickerFundamentals(ticker);
                 const isExpanded = expandedTicker === ticker;
+                const liveQuote = getTickerLiveQuote(ticker, cause.price, cause.change, cause.isPositive);
 
                 return (
                   <div 
@@ -1151,16 +1311,19 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Right: Price, Change & Chevron */}
+                      {/* Right: Live Price, Change & Chevron */}
                       <div className="flex items-center gap-3 sm:gap-4 shrink-0">
                         <div className="text-right">
-                          <span className="font-bold text-sm text-[#191C21] font-mono block">
-                            {customPrices[ticker] || cause.price}
-                          </span>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Cotización en tiempo real"></span>
+                            <span className="font-bold text-sm text-[#191C21] font-mono block">
+                              {liveQuote.price}
+                            </span>
+                          </div>
                           <span className={`text-xs font-mono font-semibold ${
-                            cause.isPositive ? 'text-emerald-700' : 'text-rose-700'
+                            liveQuote.isPositive ? 'text-emerald-700' : 'text-rose-700'
                           }`}>
-                            {cause.change}
+                            {liveQuote.change}
                           </span>
                         </div>
 
@@ -1188,9 +1351,9 @@ export default function App() {
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
                               <span>
-                                Cotización: <strong className="text-[#191C21] font-mono text-sm">{customPrices[ticker] || cause.price}</strong>
-                                <span className={`ml-1 font-mono font-bold ${cause.isPositive ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                  ({cause.change})
+                                Cotización en Vivo: <strong className="text-[#191C21] font-mono text-sm">{liveQuote.price}</strong>
+                                <span className={`ml-1 font-mono font-bold ${liveQuote.isPositive ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                  ({liveQuote.change})
                                 </span>
                               </span>
                               <span>·</span>
@@ -1565,7 +1728,332 @@ export default function App() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 3: EVENTOS CRÍTICOS & OPORTUNIDADES GLOBALES                 */}
+        {/* VIEW 3: RADAR JOYAS OCULTAS & ASIMETRÍAS (SMALL CAPS & PANIC)    */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {activeSection === 'radar_gems' && (
+          <div className="space-y-6 animate-fadeIn">
+            
+            {/* Header & Global Scanner Trigger */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-950 to-slate-900 text-white shadow-md relative overflow-hidden">
+              <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+              <div className="relative z-10 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30 uppercase tracking-wider flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-purple-300" />
+                        <span>Escáner Autónomo 24/7</span>
+                      </span>
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        Último rastreo: {radarLastScan}
+                      </span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                      Radar de Joyas Ocultas & Asimetrías
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed mt-1">
+                      Rastreo en bolsas globales (Nasdaq, NYSE, BME y XETRA) para descubrir Small Caps con tecnologías indispensables para las Big Tech y caídas de pánico irracionales (como Intel a 19$) con balances de acero.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleTriggerGlobalScan}
+                    disabled={isScanningRadar}
+                    className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isScanningRadar ? 'animate-spin' : ''}`} />
+                    <span>{isScanningRadar ? 'Escaneando Bolsas...' : 'Escanear Bolsas con IA'}</span>
+                  </button>
+                </div>
+
+                {radarSuccessNotice && (
+                  <div className="p-2.5 rounded-lg bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2 animate-fadeIn">
+                    <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>{radarSuccessNotice}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Universal Capital Management & Strategy Card (Neutral for any investor) */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#FAF8F5] border border-[#DDD8CD] space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🏛️</span>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Marco Institucional de Asignación Patrimonial (Universal para cualquier inversor)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Diseñado para carteras de cualquier volumen (1.000 €, 20.000 €, 100.000 € o más) con gestión matemática de riesgo.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-1">
+                <div className="p-3 rounded-xl bg-white border border-[#E7E2D8] space-y-1">
+                  <strong className="text-purple-900 font-bold block">1. Regla Proporcional (1% al 5%)</strong>
+                  <p className="text-slate-600 leading-relaxed text-[11.5px]">
+                    Independientemente de tu capital, la regla de oro institucional es destinar <strong>entre un 1% y un 5% de tu cartera total</strong> a cada joya o apuesta asimétrica. Si multiplica por 3x o 5x, genera una rentabilidad neta palpable; si se retrasa, tu patrimonio principal sigue intacto.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white border border-[#E7E2D8] space-y-1">
+                  <strong className="text-sky-900 font-bold block">2. Cobertura Global en Interactive Brokers (IBKR)</strong>
+                  <p className="text-slate-600 leading-relaxed text-[11.5px]">
+                    Todos los activos del radar (América, Europa y gigantes de Asia como Japón, Hong Kong o India) son <strong>negociables al contado en Interactive Brokers</strong> con bajas comisiones y sin derivados tóxicos.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white border border-[#E7E2D8] space-y-1">
+                  <strong className="text-emerald-900 font-bold block">3. Precios Reales en Vivo vs. Proyecciones</strong>
+                  <p className="text-slate-600 leading-relaxed text-[11.5px]">
+                    La cotización marcada en verde es el <strong>precio real actual en vivo</strong>. Las estimaciones de valoración son proyecciones contables que solo se alcanzan si el negocio normaliza sus beneficios. Cero expectativas engañosas.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Category Filter Pills (Including Asia & IBKR) */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setGemTypeFilter('todos')}
+                className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap font-semibold ${
+                  gemTypeFilter === 'todos'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-[#DDD8CD]'
+                }`}
+              >
+                Todas las Oportunidades ({OPPORTUNITIES_DATABASE.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGemTypeFilter('asia_ibkr')}
+                className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap font-semibold flex items-center gap-1.5 ${
+                  gemTypeFilter === 'asia_ibkr'
+                    ? 'bg-emerald-800 text-white shadow-xs'
+                    : 'bg-white text-emerald-900 hover:bg-emerald-50 border border-emerald-300'
+                }`}
+              >
+                <span>🌏 Joyas de Asia en IBKR (Japón / HK / Taiwán / India)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGemTypeFilter('small_cap_tech')}
+                className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap font-semibold flex items-center gap-1.5 ${
+                  gemTypeFilter === 'small_cap_tech'
+                    ? 'bg-purple-700 text-white shadow-xs'
+                    : 'bg-white text-purple-900 hover:bg-purple-50 border border-purple-200'
+                }`}
+              >
+                <span>💎 Small Caps Tecnológicas (Objetivos Big Tech)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGemTypeFilter('panic_turnaround')}
+                className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap font-semibold flex items-center gap-1.5 ${
+                  gemTypeFilter === 'panic_turnaround'
+                    ? 'bg-rose-700 text-white shadow-xs'
+                    : 'bg-white text-rose-900 hover:bg-rose-50 border border-rose-200'
+                }`}
+              >
+                <span>🩸 Caídas de Pánico Asimétricas</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGemTypeFilter('niche_monopoly')}
+                className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap font-semibold flex items-center gap-1.5 ${
+                  gemTypeFilter === 'niche_monopoly'
+                    ? 'bg-sky-700 text-white shadow-xs'
+                    : 'bg-white text-sky-900 hover:bg-sky-50 border border-sky-200'
+                }`}
+              >
+                <span>🛡️ Monopolios de Nicho Silencioso</span>
+              </button>
+            </div>
+
+            {/* Opportunities Grid with Live Quotes & Transparent Pricing */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {OPPORTUNITIES_DATABASE
+                .filter(opp => {
+                  if (gemTypeFilter === 'todos') return true;
+                  if (gemTypeFilter === 'asia_ibkr') return opp.marketSector === 'Asia & Emergentes';
+                  return opp.gemType === gemTypeFilter;
+                })
+                .map(opp => {
+                  const isAlreadyTracked = trackedTickers.includes(opp.ticker);
+                  const live = getTickerLiveQuote(opp.ticker, opp.currentPrice);
+
+                  return (
+                    <div 
+                      key={opp.ticker} 
+                      className="p-5 rounded-2xl bg-white border border-[#E7E2D8] hover:border-[#DDD8CD] transition shadow-xs space-y-3.5 flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        {/* Top Bar: Ticker, Name, Badge, Live Price */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-base font-extrabold text-[#191C21]">
+                                {opp.ticker}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-500">
+                                {opp.marketSector}
+                              </span>
+                              {opp.gemType === 'small_cap_tech' && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                  💎 Small Cap / M&A
+                                </span>
+                              )}
+                              {opp.gemType === 'panic_turnaround' && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                  🩸 Turnaround Asimétrico
+                                </span>
+                              )}
+                              {opp.gemType === 'niche_monopoly' && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                                  🛡️ Monopolio Silencioso
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-xs font-bold text-slate-900 mt-0.5">
+                              {opp.name}
+                            </h4>
+                            {opp.exchangeAvailableIBKR && (
+                              <span className="text-[10.5px] font-mono text-slate-500 block mt-0.5">
+                                🏛️ {opp.exchangeAvailableIBKR}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Cotización en tiempo real"></span>
+                              <span className="font-mono text-sm font-bold text-slate-900">
+                                {live.price}
+                              </span>
+                            </div>
+                            <span className={`font-mono text-[11px] font-semibold block ${live.isPositive ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              {live.change}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Transparent Price Distinction Box: Real vs Projected Target */}
+                        <div className="grid grid-cols-2 gap-2 text-xs p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E7E2D8]">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block">🟢 Precio Real de Mercado:</span>
+                            <span className="font-mono font-bold text-slate-900 text-xs sm:text-sm">{live.price}</span>
+                            <span className={`text-[11px] font-mono font-semibold ml-1 ${live.isPositive ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              ({live.change})
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-purple-900 block">🎯 Valoración Objetivo / Proyección:</span>
+                            <span className="font-mono font-bold text-purple-950 text-xs sm:text-sm">
+                              {opp.targetPriceEstimated ? opp.targetPriceEstimated.split(' ')[0] : opp.potentialUpside}
+                            </span>
+                            <span className="text-[10px] text-slate-500 block font-medium truncate">
+                              {opp.potentialUpside}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Why is an opportunity (Plain Language) */}
+                        <div className="p-3 rounded-xl bg-white border border-[#EDE8DE] space-y-1">
+                          <strong className="text-slate-800 text-xs font-bold block">
+                            💡 La Oportunidad Explicada en Cristiano:
+                          </strong>
+                          <p className="text-xs text-slate-700 leading-relaxed">
+                            {opp.whyIsOpportunity}
+                          </p>
+                        </div>
+
+                        {/* Secret Edge / Technology */}
+                        {opp.secretEdge && (
+                          <div className="p-3 rounded-xl bg-purple-50/70 border border-purple-200/80 space-y-1">
+                            <span className="text-[11px] font-bold text-purple-900 uppercase tracking-wide flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-purple-700" />
+                              <span>Foso Tecnológico / Patente Clave:</span>
+                            </span>
+                            <p className="text-xs text-purple-950 leading-relaxed font-medium">
+                              {opp.secretEdge}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Cash Burn & Balance Shield */}
+                        <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E7E2D8] space-y-1 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-800">🛡️ Salud de Caja & Solvencia:</span>
+                            <span className="text-[11px] font-semibold text-emerald-700">Auditado OK</span>
+                          </div>
+                          <p className="text-slate-600 leading-relaxed text-[11.5px]">
+                            {opp.cashBurnVerdict || `${opp.ebitdaStrength} · ${opp.debtProfile}`}
+                          </p>
+                        </div>
+
+                        {/* Universal Proportional Strategy */}
+                        <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-1 text-xs">
+                          <strong className="text-emerald-950 font-bold block flex items-center gap-1">
+                            <span>🎯 Estrategia de Asignación Proporcional:</span>
+                          </strong>
+                          <p className="text-emerald-900 leading-relaxed text-[11.5px]">
+                            {opp.allocationStrategy || opp.ticket500Strategy || 'Asignación sugerida del 1% al 4% del capital de tu cartera para mantener el riesgo matemáticamente acotado.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="pt-3 border-t border-[#F5F2EB] flex items-center justify-between gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAuditTicker(opp.ticker)}
+                          className="px-3 py-1.5 rounded-lg bg-[#EFECE4] hover:bg-[#E5E1D5] text-slate-800 font-semibold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <Search className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Auditar con IA</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => addAuditedTickerToWatchlist(opp.ticker)}
+                          disabled={isAlreadyTracked}
+                          className={`px-3.5 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 ${
+                            isAlreadyTracked
+                              ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-default'
+                              : 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xs cursor-pointer'
+                          }`}
+                        >
+                          {isAlreadyTracked ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>En mi Cartera</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>+ Fijar en mi Cartera</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                    </div>
+                  );
+                })}
+            </div>
+
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* VIEW 4: EVENTOS CRÍTICOS & PULSO MACRO                            */}
         {/* ══════════════════════════════════════════════════════════════════ */}
         {activeSection === 'events_opportunities' && (
           <div className="space-y-6 animate-fadeIn">

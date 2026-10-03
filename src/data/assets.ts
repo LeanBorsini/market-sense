@@ -1,3 +1,5 @@
+import { AsymmetryVisualMetrics } from '../components/AsymmetryVisualizer';
+
 export type AssetCategory = 'Todos' | 'Acciones' | 'Índices' | 'Cripto' | 'Materias Primas';
 
 export interface NewsItem {
@@ -96,6 +98,7 @@ export interface OpportunityScan {
   cashBurnVerdict?: string; // Filtro de quema de caja
   allocationStrategy?: string; // Estrategia proporcional universal (% de cartera)
   ticket500Strategy?: string; // Compatible con cálculos de ticket
+  asymmetry?: AsymmetryVisualMetrics; // Datos de asimetría visual y horizonte temporal sin ansiedad
 }
 
 export const INITIAL_ASSET_DATABASE: Asset[] = [
@@ -700,7 +703,17 @@ export const OPPORTUNITIES_DATABASE: OpportunityScan[] = [
     secretEdge: 'Ecosistema de pagos descentralizados ultrarrápidos con comisiones inferiores a $0.001.',
     cashBurnVerdict: 'No quema caja corporativa; red autónoma autosuficiente.',
     targetPriceEstimated: '$280.00 (Techo de canal en ciclo alcista)',
-    allocationStrategy: 'Asignación sugerida: 1% a 3% de tu capital total. Volatilidad alta pero asimetría en adopción masiva.'
+    allocationStrategy: 'Asignación sugerida: 1% a 3% de tu capital total. Volatilidad alta pero asimetría en adopción masiva.',
+    asymmetry: {
+      downsideRiskPercent: 22,
+      downsidePrice: '$144.00',
+      upsidePotentialPercent: 55,
+      targetPrice: '$285.00',
+      ratioText: '1 : 2.5',
+      timeHorizonEstimate: '6 a 12 meses',
+      timeHorizonCategory: 'Medio (6-12 meses)',
+      patienceGuidance: 'Activo de alta volatilidad. Asignar fracciones pequeñas (1-2%) y dejar correr el ciclo de adopción sin entrar en pánico por retrocesos semanales.'
+    }
   },
   {
     ticker: 'SONY',
@@ -720,7 +733,17 @@ export const OPPORTUNITIES_DATABASE: OpportunityScan[] = [
     gemType: 'niche_monopoly',
     secretEdge: 'Patentes mundiales de sensores de imagen apilados indispensables para cámaras de IA y visión autónoma.',
     cashBurnVerdict: 'Cero quema de caja. Generador continuo de miles de millones en flujo libre al año.',
-    allocationStrategy: 'Asignación sugerida: 2% a 5% de tu cartera. Calidad defensiva con viento de cola tecnológico en IBKR.'
+    allocationStrategy: 'Asignación sugerida: 2% a 5% de tu cartera. Calidad defensiva con viento de cola tecnológico en IBKR.',
+    asymmetry: {
+      downsideRiskPercent: 12,
+      downsidePrice: '$82.80',
+      upsidePotentialPercent: 40,
+      targetPrice: '$132.00',
+      ratioText: '1 : 3.3',
+      timeHorizonEstimate: '12 a 18 meses',
+      timeHorizonCategory: 'Largo (12-24 meses)',
+      patienceGuidance: 'Monopolio industrial japonés de grado de inversión. El valor se consolida con la demanda de cámaras de IA y robótica; evolución sólida y pausada.'
+    }
   },
   {
     ticker: 'TM',
@@ -740,7 +763,17 @@ export const OPPORTUNITIES_DATABASE: OpportunityScan[] = [
     gemType: 'niche_monopoly',
     secretEdge: 'Red de producción global imbatible en costes y fiabilidad mecánica por más de 30 años.',
     cashBurnVerdict: 'La mayor máquina de generar flujo de caja de la industria mundial del motor.',
-    allocationStrategy: 'Asignación sugerida: 3% a 6% de tu cartera. Máxima solvencia patrimonial en Interactive Brokers.'
+    allocationStrategy: 'Asignación sugerida: 3% a 6% de tu cartera. Máxima solvencia patrimonial en Interactive Brokers.',
+    asymmetry: {
+      downsideRiskPercent: 10,
+      downsidePrice: '$169.00',
+      upsidePotentialPercent: 30,
+      targetPrice: '$245.00',
+      ratioText: '1 : 3.0',
+      timeHorizonEstimate: '12 a 24 meses',
+      timeHorizonCategory: 'Largo (12-24 meses)',
+      patienceGuidance: 'Pilar defensivo patrimonial. Los 30.000M$ en caja líquida y dividendos protegen el capital mientras la tecnología híbrida barre en ventas mundiales.'
+    }
   },
   {
     ticker: 'INTC',
@@ -760,7 +793,17 @@ export const OPPORTUNITIES_DATABASE: OpportunityScan[] = [
     gemType: 'panic_turnaround',
     secretEdge: 'La única empresa occidental con capacidad física de fundición a gran escala en territorio de EE.UU. y Europa.',
     cashBurnVerdict: 'Fase intensiva de inversión cubierta por ayudas gubernamentales y acuerdos de co-inversión privada.',
-    allocationStrategy: 'Asignación sugerida: 2% a 4% de tu cartera total. Posición asimétrica con horizonte a 18-24 meses.'
+    allocationStrategy: 'Asignación sugerida: 2% a 4% de tu cartera total. Posición asimétrica con horizonte a 18-24 meses.',
+    asymmetry: {
+      downsideRiskPercent: 15,
+      downsidePrice: '$18.50',
+      upsidePotentialPercent: 85,
+      targetPrice: '$40.00',
+      ratioText: '1 : 5.6',
+      timeHorizonEstimate: '18 a 24 meses',
+      timeHorizonCategory: 'Largo (12-24 meses)',
+      patienceGuidance: 'Paciencia en proceso de fundición: la construcción de fábricas y producción para Amazon/Gobierno de EE.UU. madura hacia finales de 2026 y 2027. No buscar retornos instantáneos.'
+    }
   },
   {
     ticker: 'FN',
@@ -780,7 +823,17 @@ export const OPPORTUNITIES_DATABASE: OpportunityScan[] = [
     gemType: 'small_cap_tech',
     secretEdge: 'Monopolio en empaquetado y fabricación óptica de precisión. Cliente exclusivo de Nvidia para cables ópticos de 800G.',
     cashBurnVerdict: 'Cero quema de caja. Genera más de $250M de flujo libre al año.',
-    allocationStrategy: 'Asignación sugerida: 1.5% a 3% de tu capital. Crecimiento compuesto a rebufo de la IA sin múltiplos desorbitados.'
+    allocationStrategy: 'Asignación sugerida: 1.5% a 3% de tu capital. Crecimiento compuesto a rebufo de la IA sin múltiplos desorbitados.',
+    asymmetry: {
+      downsideRiskPercent: 16,
+      downsidePrice: '$203.00',
+      upsidePotentialPercent: 42,
+      targetPrice: '$345.00',
+      ratioText: '1 : 2.6',
+      timeHorizonEstimate: '6 a 12 meses',
+      timeHorizonCategory: 'Medio (6-12 meses)',
+      patienceGuidance: 'Proveedor crítico de Nvidia. Los catalizadores se reflejan en cada entrega trimestral de servidores ópticos de IA.'
+    }
   },
   {
     ticker: 'POWI',
@@ -800,7 +853,17 @@ export const OPPORTUNITIES_DATABASE: OpportunityScan[] = [
     gemType: 'small_cap_tech',
     secretEdge: 'Patentes de tecnología PowiGaN irremplazables en fuentes de alimentación de alta eficiencia.',
     cashBurnVerdict: 'Impecable: Más de 20 años consecutivos con flujo de caja positivo. No diluye a los accionistas.',
-    allocationStrategy: 'Asignación sugerida: 1.5% a 3% de tu capital. Joya tecnológica con patentes de alto valor de adquisición.'
+    allocationStrategy: 'Asignación sugerida: 1.5% a 3% de tu capital. Joya tecnológica con patentes de alto valor de adquisición.',
+    asymmetry: {
+      downsideRiskPercent: 14,
+      downsidePrice: '$55.50',
+      upsidePotentialPercent: 50,
+      targetPrice: '$96.00',
+      ratioText: '1 : 3.5',
+      timeHorizonEstimate: '12 a 18 meses',
+      timeHorizonCategory: 'Largo (12-24 meses)',
+      patienceGuidance: 'Joya de nitruro de galio con balance limpio. Madura conforme los centros de datos renuevan su infraestructura de eficiencia energética.'
+    }
   },
   {
     ticker: 'ALNY',
@@ -820,7 +883,17 @@ export const OPPORTUNITIES_DATABASE: OpportunityScan[] = [
     gemType: 'small_cap_tech',
     secretEdge: 'Monopolio en patentes de RNAi. Es el activo más codiciado de la industria farmacéutica global.',
     cashBurnVerdict: 'Punto de equilibrio (break-even) operativo alcanzado. Riesgo de dilución prácticamente nulo.',
-    allocationStrategy: 'Asignación sugerida: 1% a 3% de tu cartera. Biotecnología con ingresos comerciales y patentes exclusivas.'
+    allocationStrategy: 'Asignación sugerida: 1% a 3% de tu cartera. Biotecnología con ingresos comerciales y patentes exclusivas.',
+    asymmetry: {
+      downsideRiskPercent: 15,
+      downsidePrice: '$240.00',
+      upsidePotentialPercent: 45,
+      targetPrice: '$410.00',
+      ratioText: '1 : 3.0',
+      timeHorizonEstimate: '12 a 24 meses',
+      timeHorizonCategory: 'Largo (12-24 meses)',
+      patienceGuidance: 'Ventas en farmacias y patentes protegidas. El valor se materializa con la expansión de recetas o eventual oferta de compra por Big Pharma.'
+    }
   },
   {
     ticker: 'OHLA',
@@ -840,7 +913,17 @@ export const OPPORTUNITIES_DATABASE: OpportunityScan[] = [
     gemType: 'panic_turnaround',
     secretEdge: 'Licencias federales y estatales para construir autopistas y hospitales en Nueva York, Florida y California.',
     cashBurnVerdict: 'Desbloqueo de avales libera anticipos de clientes en efectivo.',
-    allocationStrategy: 'Asignación sugerida: 1% a 4% de tu capital. Posición controlada para capturar el recorrido de la reestructuración.'
+    allocationStrategy: 'Asignación sugerida: 1% a 4% de tu capital. Posición controlada para capturar el recorrido de la reestructuración.',
+    asymmetry: {
+      downsideRiskPercent: 18,
+      downsidePrice: '0.2900 €',
+      upsidePotentialPercent: 150,
+      targetPrice: '0.8800 €',
+      ratioText: '1 : 8.3',
+      timeHorizonEstimate: '12 a 18 meses',
+      timeHorizonCategory: 'Largo (12-24 meses)',
+      patienceGuidance: 'Turnaround de reestructuración: el valor se desbloquea con la firma notarial de avales, ahorro de intereses y ejecución de obras en EE.UU.; no mirar oscilaciones intradía.'
+    }
   }
 ];
 

@@ -47,6 +47,7 @@ import {
 import { TickerAIConsultant } from './components/TickerAIConsultant';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { useAuth } from './context/AuthContext';
+import { AsymmetryVisualizer, createAsymmetryMetrics } from './components/AsymmetryVisualizer';
 
 // Global fallback to prevent any ReferenceError: dublinTime is not defined from cached scripts or workers
 if (typeof globalThis !== 'undefined') {
@@ -1974,6 +1975,12 @@ export default function App() {
                             {opp.whyIsOpportunity}
                           </p>
                         </div>
+
+                        {/* Sober Minimalist Asymmetry Visualizer & Anxiety-Free Time Horizon */}
+                        <AsymmetryVisualizer 
+                          metrics={createAsymmetryMetrics(opp)}
+                          currentPriceDisplay={live.price}
+                        />
 
                         {/* Secret Edge / Technology */}
                         {opp.secretEdge && (

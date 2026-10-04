@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+@theme {
+  --font-serif: 'Cormorant Garamond', Georgia, Cambria, 'Times New Roman', serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+:root {
+  --font-heading: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+body.theme-editorial_pluma {
+  --font-heading: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body.theme-prensa_financiera {
+  --font-heading: 'Newsreader', Georgia, serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body.theme-moderno {
+  --font-heading: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
 html, body {
   overflow-x: hidden;
   width: 100%;
@@ -8,6 +35,29 @@ html, body {
   padding: 0;
   -webkit-text-size-adjust: 100%;
   touch-action: manipulation;
+  font-family: var(--font-body);
+  color: #191C21;
+  background-color: #F8F6F0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings with high-contrast pen & ink / bespoke editorial engraving */
+h1, h2, h3, .font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: -0.015em;
+}
+
+/* Numbers and financial tickers */
+.font-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* Calligraphic pen & ink signature / italic notes */
+.font-ink {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
 }
 
 #root {

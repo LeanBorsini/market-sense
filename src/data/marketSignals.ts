@@ -67,6 +67,11 @@ export interface MarketGlobalPulse {
   strategicGuidance: string;
 }
 
+// Convenient engineering type aliases for backwards compatibility
+export type DailyMacroImpact = MacroImpactItem;
+export type CriticalEvent = CriticalEventAlert;
+export type GlobalMarketPulse = MarketGlobalPulse;
+
 // 1. "EL POR QUÉ SE MUEVE" (Base de datos analítica sincronizada con símbolos reales de TradingView)
 export const WHY_IT_MOVES_DATA: Record<string, MovementCause> = {
   OHLA: {

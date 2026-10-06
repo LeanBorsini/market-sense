@@ -362,8 +362,21 @@ export default function App() {
     return text;
   }, [trackedTickers, customPrices]);
 
-  // ─── 10. NON-INVASIVE VOLATILITY CATALYST ALERT ───
-  const imminentVolatilityEvent = CRITICAL_EVENTS_CALENDAR[0] || null;
+  // ─── 10. NON-INVASIVE VOLATILITY CATALYST ALERT (FILTERED FOR YOUR ACTIVE PORTFOLIO) ───
+  const imminentVolatilityEvent = useMemo(() => {
+    // 1. Prioritize upcoming events directly affecting assets in your active watchlist
+    const matchingPortfolioEvent = CRITICAL_EVENTS_CALENDAR.find(ev => 
+      trackedTickers.some(t => ev.tickerOrSector.toUpperCase().includes(t.toUpperCase()))
+    );
+    if (matchingPortfolioEvent) return matchingPortfolioEvent;
+
+    // 2. Otherwise display the most critical global macro event affecting the broad market
+    const macroEvent = CRITICAL_EVENTS_CALENDAR.find(ev => 
+      ev.tickerOrSector.toLowerCase().includes('macro') || ev.urgency === 'Crítico'
+    );
+    return macroEvent || CRITICAL_EVENTS_CALENDAR[0] || null;
+  }, [trackedTickers]);
+
   const [isVolatilityAlertDismissed, setIsVolatilityAlertDismissed] = useState<boolean>(() => {
     try {
       const dismissedId = localStorage.getItem('marketsense_dismissed_volatility_ev');
@@ -461,6 +474,7 @@ export default function App() {
             newsLastSynced={newsLastSynced}
             newsSyncNotice={newsSyncNotice}
             macroImpacts={DAILY_MACRO_IMPACT}
+            trackedTickers={trackedTickers}
           />
         )}
 
@@ -484,6 +498,7 @@ export default function App() {
         {activeSection === 'events_opportunities' && (
           <CalendarView
             events={CRITICAL_EVENTS_CALENDAR}
+            trackedTickers={trackedTickers}
           />
         )}
       </main>

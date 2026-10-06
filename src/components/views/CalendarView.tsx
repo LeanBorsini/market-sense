@@ -12,11 +12,13 @@ import { CRITICAL_EVENTS_CALENDAR, GLOBAL_MARKET_PULSE, CriticalEvent, GlobalMar
 interface CalendarViewProps {
   events?: CriticalEvent[];
   pulses?: GlobalMarketPulse[];
+  trackedTickers?: string[];
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
   events = CRITICAL_EVENTS_CALENDAR,
   pulses = GLOBAL_MARKET_PULSE,
+  trackedTickers = [],
 }) => {
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -35,31 +37,49 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
 
         <div className="space-y-2.5">
-          {events.map(ev => (
-            <div key={ev.id} className="p-4 rounded-xl bg-white border border-[#E7E2D8] flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 rounded font-mono text-xs font-bold bg-[#EFECE4] text-slate-800">
-                    {ev.date}
-                  </span>
-                  <span className="text-xs font-mono text-slate-500">{ev.timeDublin}</span>
-                  <span className="text-xs font-bold text-emerald-800 font-mono">{ev.tickerOrSector}</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
-                    ev.urgency === 'Crítico' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-900'
-                  }`}>
-                    {ev.urgency === 'Crítico' ? '⚡ Alta Volatilidad Intradía' : '🌊 Volatilidad Moderada'}
-                  </span>
-                </div>
-                <h3 className="text-sm font-bold text-[#191C21]">{ev.event}</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">{ev.whyMatters}</p>
-              </div>
+          {events.map(ev => {
+            const isTrackingThis = trackedTickers.some(t => ev.tickerOrSector.toUpperCase().includes(t.toUpperCase()));
 
-              <div className="md:text-right shrink-0 p-2.5 rounded-lg bg-[#FAF8F5] border border-[#E7E2D8] md:max-w-xs text-xs">
-                <span className="text-[11px] text-slate-500 font-semibold block">Impacto Contable:</span>
-                <span className="font-medium text-emerald-800">{ev.balanceImpact}</span>
+            return (
+              <div 
+                key={ev.id} 
+                className={`p-4 rounded-xl bg-white border transition shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                  isTrackingThis 
+                    ? 'border-emerald-300 ring-1 ring-emerald-600/10' 
+                    : 'border-[#E7E2D8]'
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2 py-0.5 rounded font-mono text-xs font-bold bg-[#EFECE4] text-slate-800">
+                      {ev.date}
+                    </span>
+                    <span className="text-xs font-mono text-slate-500">{ev.timeDublin}</span>
+                    <span className="text-xs font-bold text-emerald-800 font-mono">{ev.tickerOrSector}</span>
+                    
+                    {isTrackingThis && (
+                      <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                        <span>🎯 En tu Cartera</span>
+                      </span>
+                    )}
+
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                      ev.urgency === 'Crítico' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-900'
+                    }`}>
+                      {ev.urgency === 'Crítico' ? '⚡ Alta Volatilidad Intradía' : '🌊 Volatilidad Moderada'}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-bold text-[#191C21]">{ev.event}</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">{ev.whyMatters}</p>
+                </div>
+
+                <div className="md:text-right shrink-0 p-2.5 rounded-lg bg-[#FAF8F5] border border-[#E7E2D8] md:max-w-xs text-xs">
+                  <span className="text-[11px] text-slate-500 font-semibold block">Impacto Contable:</span>
+                  <span className="font-medium text-emerald-800">{ev.balanceImpact}</span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

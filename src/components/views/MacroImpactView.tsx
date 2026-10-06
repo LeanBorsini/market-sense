@@ -16,6 +16,7 @@ interface MacroImpactViewProps {
   newsLastSynced: string;
   newsSyncNotice: string | null;
   macroImpacts?: DailyMacroImpact[];
+  trackedTickers?: string[];
 }
 
 export const MacroImpactView: React.FC<MacroImpactViewProps> = ({
@@ -24,7 +25,16 @@ export const MacroImpactView: React.FC<MacroImpactViewProps> = ({
   newsLastSynced,
   newsSyncNotice,
   macroImpacts = DAILY_MACRO_IMPACT,
+  trackedTickers = [],
 }) => {
+  const sortedImpacts = React.useMemo(() => {
+    return [...macroImpacts].sort((a, b) => {
+      const aMatches = a.affectsTickers.some(t => trackedTickers.includes(t)) ? 1 : 0;
+      const bMatches = b.affectsTickers.some(t => trackedTickers.includes(t)) ? 1 : 0;
+      return bMatches - aMatches;
+    });
+  }, [macroImpacts, trackedTickers]);
+
   const getTrafficLightBadge = (light: 'VERDE' | 'AMBAR' | 'ROJO') => {
     if (light === 'VERDE') {
       return (
@@ -105,29 +115,46 @@ export const MacroImpactView: React.FC<MacroImpactViewProps> = ({
 
       {/* News Cards with Prominent Date & Source Auditing */}
       <div className="space-y-3.5">
-        {macroImpacts.map(item => (
-          <div key={item.id} className="p-5 rounded-2xl bg-white border border-[#E7E2D8] shadow-xs space-y-3.5">
-            {/* Date, Time, Source & Validity Header Strip */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#F5F2EB] text-[11px]">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2 py-0.5 rounded-md bg-[#FAF8F5] border border-[#DDD8CD] font-semibold text-slate-800 flex items-center gap-1">
-                  <span>📅</span>
-                  <span>{item.date}</span>
-                  <span className="text-slate-400">·</span>
-                  <span className="text-emerald-800 font-mono font-bold">{item.time}</span>
-                </span>
-                <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10.5px] font-medium hidden sm:inline">
-                  Campana: {item.sessionWindow}
-                </span>
-              </div>
+        {sortedImpacts.map(item => {
+          const matchingTickers = item.affectsTickers.filter(t => trackedTickers.includes(t));
+          const isPortfolioImpact = matchingTickers.length > 0;
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                  <span>{item.statusBadge}</span>
-                </span>
+          return (
+            <div 
+              key={item.id} 
+              className={`p-5 rounded-2xl bg-white border transition shadow-xs space-y-3.5 ${
+                isPortfolioImpact 
+                  ? 'border-emerald-300 ring-1 ring-emerald-600/10' 
+                  : 'border-[#E7E2D8]'
+              }`}
+            >
+              {/* Date, Time, Source & Validity Header Strip */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#F5F2EB] text-[11px]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-md bg-[#FAF8F5] border border-[#DDD8CD] font-semibold text-slate-800 flex items-center gap-1">
+                    <span>📅</span>
+                    <span>{item.date}</span>
+                    <span className="text-slate-400">·</span>
+                    <span className="text-emerald-800 font-mono font-bold">{item.time}</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10.5px] font-medium hidden sm:inline">
+                    Campana: {item.sessionWindow}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isPortfolioImpact && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold flex items-center gap-1">
+                      <span>🎯 Afecta a tu Cartera ({matchingTickers.join(', ')})</span>
+                    </span>
+                  )}
+
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                    <span>{item.statusBadge}</span>
+                  </span>
+                </div>
               </div>
-            </div>
 
             {/* Category & Title */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -193,7 +220,8 @@ export const MacroImpactView: React.FC<MacroImpactViewProps> = ({
               </span>
             </div>
           </div>
-        ))}
+        );
+      })}
       </div>
     </div>
   );

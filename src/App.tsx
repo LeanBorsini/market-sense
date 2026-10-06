@@ -35,31 +35,13 @@ import { MacroImpactView } from './components/views/MacroImpactView';
 import { RadarOpportunitiesView } from './components/views/RadarOpportunitiesView';
 import { CalendarView } from './components/views/CalendarView';
 import { AuditModal } from './components/modals/AuditModal';
-import { ProfilesModal } from './components/modals/ProfilesModal';
 import { TradingViewModal } from './components/modals/TradingViewModal';
-import { ActiveSection, LiveQuote, LiveQuotesMap, RadarGemFilter, TypographyTheme } from './types/market';
-import { buildDailyBriefing, sendTelegramMessage } from './lib/telegram';
+import { ActiveSection, LiveQuote, LiveQuotesMap, RadarGemFilter } from './types/market';
 
 // Global fallback to prevent any ReferenceError: dublinTime is not defined from cached scripts or workers
 if (typeof globalThis !== 'undefined') {
   (globalThis as any).dublinTime = '';
 }
-
-interface MarketWindow {
-  id: string;
-  name: string;
-  timeLabel: string;
-  hourCET: number;
-  minuteCET: number;
-  description: string;
-}
-
-const MARKET_WINDOWS: MarketWindow[] = [
-  { id: 'eu_open', name: 'Apertura Europa', timeLabel: '09:00 CET', hourCET: 9, minuteCET: 0, description: 'Campana BME Madrid & Europa + Datos preliminares' },
-  { id: 'us_open', name: 'Apertura Wall St', timeLabel: '15:30 CET', hourCET: 15, minuteCET: 30, description: 'Campana NYSE/Nasdaq + Empleo/IPC de EE.UU.' },
-  { id: 'fed_window', name: 'Ventana FED / Powell', timeLabel: '20:00 CET', hourCET: 20, minuteCET: 0, description: 'Ruedas de prensa de Powell, tipos de interés y minutas' },
-  { id: 'daily_close', name: 'Cierre de Mercados', timeLabel: '22:00 CET', hourCET: 22, minuteCET: 0, description: 'Cierre de Wall Street y cómputo de variaciones contables' },
-];
 
 export default function App() {
   const { 
@@ -158,38 +140,7 @@ export default function App() {
     }
   }, [trackedTickers, currentUser, saveUserDataToCloud]);
 
-  // ─── 3. TYPOGRAPHY THEME (Editorial Pen & Ink vs Press vs Modern) ───
-  const [typographyTheme, setTypographyTheme] = useState<TypographyTheme>(() => {
-    try {
-      const saved = localStorage.getItem('marketsense_typography_theme');
-      if (saved === 'editorial_pluma' || saved === 'prensa_financiera' || saved === 'moderno') {
-        return saved;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return 'editorial_pluma';
-  });
-
-  useEffect(() => {
-    document.body.classList.remove('theme-editorial_pluma', 'theme-prensa_financiera', 'theme-moderno');
-    document.body.classList.add(`theme-${typographyTheme}`);
-    try {
-      localStorage.setItem('marketsense_typography_theme', typographyTheme);
-    } catch (e) {
-      console.error(e);
-    }
-  }, [typographyTheme]);
-
-  const toggleTypographyTheme = () => {
-    setTypographyTheme(prev => {
-      if (prev === 'editorial_pluma') return 'prensa_financiera';
-      if (prev === 'prensa_financiera') return 'moderno';
-      return 'editorial_pluma';
-    });
-  };
-
-  // ─── 4. ACCORDION & CUSTOM PRICE STATES ───
+  // ─── 3. ACCORDION & CUSTOM PRICE STATES ───
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
   const [openAIConsultantTicker, setOpenAIConsultantTicker] = useState<string | null>(null);
 
@@ -236,7 +187,6 @@ export default function App() {
     if (!trackedTickers.includes(ticker)) {
       setTrackedTickers(prev => [...prev, ticker]);
       setExpandedTicker(ticker);
-      setTelegramStatusNotice(`Activo ${ticker} añadido a tu lista de seguimiento.`);
     }
   };
 
@@ -362,29 +312,7 @@ export default function App() {
     }
   };
 
-  // ─── 8. TELEGRAM CONFIGURATION & DISPATCH ───
-  const [customBotToken, setCustomBotToken] = useState<string>(() => {
-    return localStorage.getItem('marketsense_tg_token') || '';
-  });
-  const [customChatId, setCustomChatId] = useState<string>(() => {
-    return localStorage.getItem('marketsense_tg_chatid') || '';
-  });
-  const [chatDisplayName, setChatDisplayName] = useState<string>(() => {
-    return localStorage.getItem('marketsense_tg_display_name') || 'Market_sense';
-  });
-  const [autoDispatchEnabled, setAutoDispatchEnabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('marketsense_tg_auto_dispatch');
-    return saved !== null ? saved === 'true' : true;
-  });
-  const [lastAutoDispatchWindow, setLastAutoDispatchWindow] = useState<string>(() => {
-    return localStorage.getItem('marketsense_last_auto_window') || '';
-  });
-
-  const [isTelegramSettingsOpen, setIsTelegramSettingsOpen] = useState(false);
-  const [telegramStatusNotice, setTelegramStatusNotice] = useState<string | null>(null);
-  const [isSendingTelegram, setIsSendingTelegram] = useState(false);
-
-  // ─── 9. NEWS SYNC STATE ───
+  // ─── 8. NEWS SYNC STATE ───
   const [newsLastSynced, setNewsLastSynced] = useState<string>(() => {
     return localStorage.getItem('marketsense_news_synced') || 'Hoy a las 15:30 CET (Apertura Wall St)';
   });
@@ -411,75 +339,7 @@ export default function App() {
     }
   };
 
-  // ─── 10. DYNAMIC MULTI-TIMEZONE CLOCK ───
-  type ClockMode = 'local' | 'ny' | 'dublin';
-  const [clockMode, setClockMode] = useState<ClockMode>(() => {
-    return (localStorage.getItem('marketsense_clock_mode') as ClockMode) || 'local';
-  });
-  const [clockTime, setClockTime] = useState<string>('');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).dublinTime = clockTime;
-    }
-  }, [clockTime]);
-
-  const userCity = useMemo(() => {
-    try {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const raw = tz.split('/')[1] || tz;
-      return raw.replace(/_/g, ' ');
-    } catch {
-      return 'Local';
-    }
-  }, []);
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      if (clockMode === 'local') {
-        setClockTime(
-          now.toLocaleTimeString('es-ES', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-          })
-        );
-      } else if (clockMode === 'ny') {
-        setClockTime(
-          now.toLocaleTimeString('es-ES', {
-            timeZone: 'America/New_York',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-          })
-        );
-      } else {
-        setClockTime(
-          now.toLocaleTimeString('es-ES', {
-            timeZone: 'Europe/Dublin',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-          })
-        );
-      }
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, [clockMode]);
-
-  const toggleClockMode = () => {
-    const nextMode: ClockMode = clockMode === 'local' ? 'ny' : clockMode === 'ny' ? 'dublin' : 'local';
-    setClockMode(nextMode);
-    localStorage.setItem('marketsense_clock_mode', nextMode);
-  };
-
-  // ─── 11. CLIPBOARD COPY STATE ───
+  // ─── 9. CLIPBOARD COPY & SUMMARY ───
   const [isCopied, setIsCopied] = useState(false);
 
   const copyText = (text: string) => {
@@ -488,125 +348,24 @@ export default function App() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  // ─── 12. BRIEFING TEXT GENERATOR & TELEGRAM DISPATCH ───
   const executiveReportText = useMemo(() => {
-    return buildDailyBriefing({
-      trackedTickers,
-      causesMap: WHY_IT_MOVES_DATA,
-      customPrices,
-      macroImpacts: DAILY_MACRO_IMPACT,
-      nextEvent: CRITICAL_EVENTS_CALENDAR[0],
-      clockTime,
-      clockMode,
-      userCity
+    let text = `🏛️ MARKETSENSE · INFORME FUNDAMENTAL\nFecha: ${new Date().toLocaleDateString('es-ES')}\n━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    trackedTickers.forEach(ticker => {
+      const cause = WHY_IT_MOVES_DATA[ticker];
+      if (!cause) return;
+      const activePrice = customPrices[ticker] || cause.price;
+      text += `▫️ ${ticker} (${activePrice} · ${cause.change}):\n`;
+      text += `  • Previsión: Corto: ${cause.shortTermOutlook.arrow} ${cause.shortTermOutlook.label} | Medio: ${cause.midTermOutlook.arrow} ${cause.midTermOutlook.label} | Largo: ${cause.longTermOutlook.arrow} ${cause.longTermOutlook.label}\n`;
+      text += `  • Causa: ${cause.rootCause}\n`;
+      text += `  • Veredicto: ${cause.verdict}\n\n`;
     });
-  }, [trackedTickers, clockTime, clockMode, userCity, customPrices]);
-
-  const sendTelegramDispatch = async (customMessage?: string) => {
-    if (!customBotToken || !customChatId) {
-      setIsTelegramSettingsOpen(true);
-      return;
-    }
-
-    setIsSendingTelegram(true);
-    setTelegramStatusNotice(null);
-    try {
-      const messageText = customMessage || executiveReportText;
-      const res = await sendTelegramMessage(customBotToken, customChatId, messageText);
-      if (res.success) {
-        setTelegramStatusNotice(`✅ Informe despachado a "${chatDisplayName || 'Market_sense'}" con éxito.`);
-      } else {
-        setTelegramStatusNotice(`⚠️ Telegram: ${res.message}`);
-      }
-      setTimeout(() => setTelegramStatusNotice(null), 6000);
-    } finally {
-      setIsSendingTelegram(false);
-    }
-  };
-
-  // Next key market window calculation
-  const currentMarketWindow = useMemo(() => {
-    const now = new Date();
-    const cetFormatter = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/Madrid',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false
-    });
-    const parts = cetFormatter.formatToParts(now);
-    const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
-    const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
-    const totalMins = hour * 60 + minute;
-
-    for (const win of MARKET_WINDOWS) {
-      const winMins = win.hourCET * 60 + win.minuteCET;
-      if (totalMins < winMins) {
-        return win;
-      }
-    }
-    return MARKET_WINDOWS[0];
-  }, [clockTime]);
-
-  // Automated Dispatch at Market Openings & Fed Windows
-  useEffect(() => {
-    if (!autoDispatchEnabled || !customBotToken || !customChatId) return;
-
-    const checkScheduledDispatch = () => {
-      const now = new Date();
-      const todayStr = now.toISOString().split('T')[0];
-      const cetFormatter = new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Europe/Madrid',
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: false
-      });
-      const parts = cetFormatter.formatToParts(now);
-      const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
-      const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
-      const totalMins = hour * 60 + minute;
-
-      for (const win of MARKET_WINDOWS) {
-        const winMins = win.hourCET * 60 + win.minuteCET;
-        const windowKey = `${todayStr}_${win.id}`;
-
-        if (totalMins >= winMins && totalMins <= winMins + 30) {
-          const stored = localStorage.getItem('marketsense_last_auto_window');
-          if (stored !== windowKey) {
-            localStorage.setItem('marketsense_last_auto_window', windowKey);
-            setLastAutoDispatchWindow(windowKey);
-            sendTelegramDispatch();
-            setTelegramStatusNotice(
-              `🔔 [Auto-Despacho] Informe de ${win.name} (${win.timeLabel}) enviado a ${chatDisplayName || 'Market_sense'}`
-            );
-            break;
-          }
-        }
-      }
-    };
-
-    checkScheduledDispatch();
-    const interval = setInterval(checkScheduledDispatch, 60000);
-    return () => clearInterval(interval);
-  }, [autoDispatchEnabled, customBotToken, customChatId, chatDisplayName]);
+    return text;
+  }, [trackedTickers, customPrices]);
 
   return (
     <div className="min-h-screen bg-[#FBF9F4] text-[#191C21] flex flex-col font-sans selection:bg-emerald-200">
       {/* ─── 1. TOP HEADER & NAVIGATION ─── */}
       <Header
-        clockMode={clockMode}
-        clockTime={clockTime}
-        userCity={userCity}
-        toggleClockMode={toggleClockMode}
-        currentMarketWindow={currentMarketWindow}
-        autoDispatchEnabled={autoDispatchEnabled}
-        isUpdatingPrices={isUpdatingPrices}
-        lastPriceUpdateTime={lastPriceUpdateTime}
-        onRefreshQuotes={fetchLiveMarketQuotes}
-        isSendingTelegram={isSendingTelegram}
-        customChatId={customChatId}
-        chatDisplayName={chatDisplayName}
-        onSendTelegram={sendTelegramDispatch}
-        onOpenTelegramSettings={() => setIsTelegramSettingsOpen(true)}
         currentUser={currentUser}
         isLoggingIn={isLoggingIn}
         onLoginWithGoogle={loginWithGoogle}
@@ -620,27 +379,9 @@ export default function App() {
         onEnableLocalProfile={enableLocalProfile}
         activeSection={activeSection}
         setActiveSection={setActiveSection}
-        isCopied={isCopied}
-        copyText={copyText}
-        typographyTheme={typographyTheme}
-        toggleTypographyTheme={toggleTypographyTheme}
       />
 
-      {/* ─── 2. STATUS NOTICES ─── */}
-      {telegramStatusNotice && (
-        <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2 flex items-center justify-between text-xs text-emerald-900 max-w-5xl mx-auto w-full">
-          <span>{telegramStatusNotice}</span>
-          <button 
-            type="button" 
-            onClick={() => setTelegramStatusNotice(null)} 
-            className="text-emerald-700 hover:text-emerald-900 font-bold ml-2 cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* ─── 3. MAIN CONTENT CONTAINER ─── */}
+      {/* ─── 2. MAIN CONTENT CONTAINER ─── */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 lg:p-8 space-y-6">
         {activeSection === 'watchlist' && (
           <WatchlistView
@@ -654,8 +395,6 @@ export default function App() {
             editingPriceVal={editingPriceVal}
             setEditingPriceVal={setEditingPriceVal}
             handleSaveCustomPrice={handleSaveCustomPrice}
-            sendTelegramDispatch={sendTelegramDispatch}
-            isSendingTelegram={isSendingTelegram}
             openAIConsultantTicker={openAIConsultantTicker}
             setOpenAIConsultantTicker={setOpenAIConsultantTicker}
             removeTickerFromWatchlist={removeTickerFromWatchlist}
@@ -701,7 +440,7 @@ export default function App() {
         )}
       </main>
 
-      {/* ─── 4. MODALS & POPUPS ─── */}
+      {/* ─── 3. MODALS & POPUPS ─── */}
       <AuditModal
         auditedResult={auditedResult}
         onClose={() => setAuditedResult(null)}
@@ -710,22 +449,7 @@ export default function App() {
         onOpenChart={setSelectedChartAsset}
       />
 
-      <ProfilesModal
-        isOpen={isTelegramSettingsOpen}
-        onClose={() => setIsTelegramSettingsOpen(false)}
-        customBotToken={customBotToken}
-        setCustomBotToken={setCustomBotToken}
-        customChatId={customChatId}
-        setCustomChatId={setCustomChatId}
-        chatDisplayName={chatDisplayName}
-        setChatDisplayName={setChatDisplayName}
-        autoDispatchEnabled={autoDispatchEnabled}
-        setAutoDispatchEnabled={setAutoDispatchEnabled}
-        onSendTestDispatch={() => sendTelegramDispatch()}
-        isSendingTelegram={isSendingTelegram}
-      />
-
-      {/* ─── 5. INTERACTIVE TRADINGVIEW CHART MODAL (PRELOADED INDICATORS) ─── */}
+      {/* ─── 4. INTERACTIVE TRADINGVIEW CHART MODAL ─── */}
       {selectedChartAsset && (
         <TradingViewModal
           isOpen={!!selectedChartAsset}

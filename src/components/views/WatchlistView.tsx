@@ -30,7 +30,6 @@ import { WHY_IT_MOVES_DATA, MovementCause, HorizonOutlook } from '../../data/mar
 import { auditTickerFundamentals } from '../../data/marketSignals';
 import { TickerAIConsultant } from '../TickerAIConsultant';
 import { LiveQuote } from '../../types/market';
-import { buildAssetTelegramMessage } from '../../lib/telegram';
 
 interface WatchlistViewProps {
   trackedTickers: string[];
@@ -43,8 +42,6 @@ interface WatchlistViewProps {
   editingPriceVal: string;
   setEditingPriceVal: (val: string) => void;
   handleSaveCustomPrice: (ticker: string) => void;
-  sendTelegramDispatch: (message: string) => Promise<void>;
-  isSendingTelegram: boolean;
   openAIConsultantTicker: string | null;
   setOpenAIConsultantTicker: (ticker: string | null) => void;
   removeTickerFromWatchlist: (e: React.MouseEvent, ticker: string) => void;
@@ -73,8 +70,6 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({
   editingPriceVal,
   setEditingPriceVal,
   handleSaveCustomPrice,
-  sendTelegramDispatch,
-  isSendingTelegram,
   openAIConsultantTicker,
   setOpenAIConsultantTicker,
   removeTickerFromWatchlist,
@@ -221,8 +216,31 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({
                   </div>
                 </div>
 
-                {/* Right: Live Price, Change & Chevron */}
-                <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                {/* Right: Direct Chart button, Live Price, Change & Chevron */}
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                  {/* Direct Ver Gráfico Button on the ticket */}
+                  {onOpenChart && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenChart({
+                          ticker: cause.ticker,
+                          name: cause.name,
+                          tradingViewSymbol: cause.tradingViewSymbol,
+                          price: activePrice,
+                          change: liveQuote.change,
+                          trafficLight: cause.trafficLight,
+                        });
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-semibold transition flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                      title={`Ver gráfico en tiempo real de ${cause.ticker}`}
+                    >
+                      <Activity className="w-3.5 h-3.5 text-purple-700" />
+                      <span className="hidden sm:inline">Gráfico</span>
+                    </button>
+                  )}
+
                   <div className="text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Cotización en tiempo real"></span>
@@ -272,7 +290,7 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* Interactive Chart with Preloaded Indicators */}
+                      {/* Interactive Chart */}
                       {onOpenChart && (
                         <button
                           type="button"
@@ -288,10 +306,10 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({
                             });
                           }}
                           className="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
-                          title="Abrir gráfico interactivo con SMA 200, EMA 50 y RSI 14 ya activados"
+                          title="Abrir gráfico interactivo en tiempo real"
                         >
                           <Activity className="w-3.5 h-3.5 text-purple-700" />
-                          <span>Gráfico con Indicadores</span>
+                          <span>Ver Gráfico</span>
                         </button>
                       )}
 
@@ -318,22 +336,6 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({
                         title="Ajustar precio manualmente"
                       >
                         ✏️ Ajustar
-                      </button>
-
-                      {/* Send single asset to Telegram */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          sendTelegramDispatch(buildAssetTelegramMessage(ticker, cause, activePrice));
-                        }}
-                        disabled={isSendingTelegram}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold transition flex items-center gap-1 active:scale-95 cursor-pointer disabled:opacity-50"
-                        title={`Enviar solo el informe de ${cause.ticker} a Telegram`}
-                      >
-                        <Send className="w-3.5 h-3.5 text-emerald-700" />
-                        <span className="hidden sm:inline">Enviar a Telegram</span>
-                        <span className="sm:hidden">Telegram</span>
                       </button>
 
                       {getTrafficLightBadge(cause.trafficLight)}

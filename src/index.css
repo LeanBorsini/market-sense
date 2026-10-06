@@ -12,21 +12,6 @@
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-body.theme-editorial_pluma {
-  --font-heading: 'Cormorant Garamond', Georgia, serif;
-  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-body.theme-prensa_financiera {
-  --font-heading: 'Newsreader', Georgia, serif;
-  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-body.theme-moderno {
-  --font-heading: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
 html, body {
   overflow-x: hidden;
   width: 100%;

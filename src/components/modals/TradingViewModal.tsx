@@ -32,7 +32,7 @@ interface TradingViewModalProps {
 }
 
 type ChartInterval = 'D' | 'W' | 'M' | '240';
-type IndicatorPreset = 'investor_complete' | 'institutional_floor' | 'clean';
+type IndicatorPreset = 'investor_complete' | 'pivots_math' | 'institutional_floor' | 'clean';
 
 export const TradingViewModal: React.FC<TradingViewModalProps> = ({
   isOpen,
@@ -98,6 +98,16 @@ export const TradingViewModal: React.FC<TradingViewModalProps> = ({
         {
           id: "RSI@tv-basicstudies",
           inputs: { length: 14 }
+        }
+      );
+    } else if (preset === 'pivots_math') {
+      studiesList.push(
+        {
+          id: "PivotPointsStandard@tv-basicstudies",
+        },
+        {
+          id: "MASimple@tv-basicstudies",
+          inputs: { length: 200 }
         }
       );
     } else if (preset === 'institutional_floor') {
@@ -260,6 +270,19 @@ export const TradingViewModal: React.FC<TradingViewModalProps> = ({
 
               <button
                 type="button"
+                onClick={() => setPreset('pivots_math')}
+                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer ${
+                  preset === 'pivots_math' 
+                    ? 'bg-purple-700 text-white shadow-2xs' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Soportes y Resistencias Matemáticas calculadas por Puntos Pivote (S1, S2, R1, R2)"
+              >
+                <span>📐 Soportes Matemáticos (Pivotes)</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setPreset('institutional_floor')}
                 className={`px-2.5 py-1 rounded text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer ${
                   preset === 'institutional_floor' 
@@ -306,16 +329,16 @@ export const TradingViewModal: React.FC<TradingViewModalProps> = ({
             </strong>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-[11.5px] leading-relaxed">
               <div className="p-2 rounded-lg bg-white border border-amber-200">
-                <span className="font-bold text-emerald-800 block">🟢 Zona de Oportunidad / Soporte:</span>
-                Si el precio toca la <strong>SMA 200</strong> o el <strong>RSI cae por debajo de 35</strong> y el balance de MarketSense es sano, suele ser el mejor momento para compras escalonadas con descuento.
+                <span className="font-bold text-emerald-800 block">🟢 Soportes Matemáticos (S1 / S2):</span>
+                Líneas inferiores calculadas por Puntos Pivote. Actúan como suelos automáticos donde entran órdenes de compra de rebote intradía y swing.
               </div>
               <div className="p-2 rounded-lg bg-white border border-amber-200">
-                <span className="font-bold text-amber-800 block">🟡 Zona Neutra / Consolidación:</span>
-                Si cotiza entre la EMA 50 y SMA 200 con RSI en 45-55, el mercado está digiriendo noticias. No hay prisa; ideal para aportaciones periódicas (DCA).
+                <span className="font-bold text-amber-800 block">🟡 Pivote Central (P):</span>
+                El precio de equilibrio matemático de la sesión. Cotizar por encima indica sesgo comprador; por debajo, sesgo vendedor.
               </div>
               <div className="p-2 rounded-lg bg-white border border-amber-200">
-                <span className="font-bold text-rose-800 block">🔴 Zona de Sobrecalentamiento:</span>
-                Si el RSI supera los 70 o la cotización se separa más de un 25% por encima de su SMA 200, el activo está eufórico. Es mejor no perseguir el precio y esperar un retroceso.
+                <span className="font-bold text-rose-800 block">🔴 Resistencias Matemáticas (R1 / R2):</span>
+                Techos objetivos donde los operadores toman beneficios rápidos y el precio suele frenar su impulso temporal.
               </div>
             </div>
           </div>
@@ -324,6 +347,18 @@ export const TradingViewModal: React.FC<TradingViewModalProps> = ({
         {/* Active Indicators Legend Strip */}
         <div className="px-3.5 py-1.5 bg-[#FAF8F5] border-b border-[#EDE8DE] flex items-center gap-3 overflow-x-auto text-[11px] font-mono shrink-0">
           <span className="text-slate-500 font-sans font-semibold">Indicadores Activos:</span>
+          {preset === 'pivots_math' && (
+            <>
+              <span className="flex items-center gap-1 text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                Puntos Pivote (S1, S2, R1, R2 Matemáticos)
+              </span>
+              <span className="flex items-center gap-1 text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 font-bold">
+                <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                SMA 200
+              </span>
+            </>
+          )}
           {preset === 'investor_complete' && (
             <>
               <span className="flex items-center gap-1 text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 font-bold">

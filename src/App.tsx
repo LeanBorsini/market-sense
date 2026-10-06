@@ -362,6 +362,24 @@ export default function App() {
     return text;
   }, [trackedTickers, customPrices]);
 
+  // ─── 10. NON-INVASIVE VOLATILITY CATALYST ALERT ───
+  const imminentVolatilityEvent = CRITICAL_EVENTS_CALENDAR[0] || null;
+  const [isVolatilityAlertDismissed, setIsVolatilityAlertDismissed] = useState<boolean>(() => {
+    try {
+      const dismissedId = localStorage.getItem('marketsense_dismissed_volatility_ev');
+      return dismissedId === imminentVolatilityEvent?.id;
+    } catch {
+      return false;
+    }
+  });
+
+  const dismissVolatilityAlert = () => {
+    if (imminentVolatilityEvent) {
+      localStorage.setItem('marketsense_dismissed_volatility_ev', imminentVolatilityEvent.id);
+      setIsVolatilityAlertDismissed(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FBF9F4] text-[#191C21] flex flex-col font-sans selection:bg-emerald-200">
       {/* ─── 1. TOP HEADER & NAVIGATION ─── */}
@@ -383,6 +401,36 @@ export default function App() {
 
       {/* ─── 2. MAIN CONTENT CONTAINER ─── */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 lg:p-8 space-y-6">
+        {/* Subtle Non-invasive Volatility Catalyst Notice */}
+        {!isVolatilityAlertDismissed && imminentVolatilityEvent && (
+          <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/90 flex items-center justify-between gap-3 text-xs text-amber-950 transition shadow-2xs animate-fadeIn">
+            <div 
+              onClick={() => setActiveSection('events_opportunities')}
+              className="flex items-center gap-2 flex-wrap cursor-pointer hover:opacity-85 transition"
+              title="Toca para ver el calendario macro de eventos decisivos"
+            >
+              <span className="flex items-center gap-1 font-bold text-amber-900 bg-amber-200/70 px-2 py-0.5 rounded text-[10px] uppercase tracking-wide">
+                ⚡ Catalizador de Volatilidad
+              </span>
+              <span className="font-semibold text-slate-900">
+                {imminentVolatilityEvent.event}
+              </span>
+              <span className="text-slate-600 font-mono text-[11px]">
+                · {imminentVolatilityEvent.date} ({imminentVolatilityEvent.tickerOrSector})
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={dismissVolatilityAlert}
+              className="text-amber-700 hover:text-amber-950 font-bold p-1 cursor-pointer shrink-0"
+              title="Ocultar aviso de volatilidad"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {activeSection === 'watchlist' && (
           <WatchlistView
             trackedTickers={trackedTickers}

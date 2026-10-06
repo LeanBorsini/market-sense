@@ -45,9 +45,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   <span className="text-xs font-mono text-slate-500">{ev.timeDublin}</span>
                   <span className="text-xs font-bold text-emerald-800 font-mono">{ev.tickerOrSector}</span>
                   <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
-                    ev.urgency === 'Crítico' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                    ev.urgency === 'Crítico' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-900'
                   }`}>
-                    {ev.urgency}
+                    {ev.urgency === 'Crítico' ? '⚡ Alta Volatilidad Intradía' : '🌊 Volatilidad Moderada'}
                   </span>
                 </div>
                 <h3 className="text-sm font-bold text-[#191C21]">{ev.event}</h3>

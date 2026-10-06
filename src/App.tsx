@@ -189,8 +189,8 @@ export default function App() {
   };
 
   // ─── 4. ACCORDION & CUSTOM PRICE STATES ───
-  const [expandedTicker, setExpandedTicker] = useState<string | null>('OHLA');
-  const [openAIConsultantTicker, setOpenAIConsultantTicker] = useState<string | null>('OHLA');
+  const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
+  const [openAIConsultantTicker, setOpenAIConsultantTicker] = useState<string | null>(null);
 
   const [customPrices, setCustomPrices] = useState<Record<string, string>>(() => {
     try {

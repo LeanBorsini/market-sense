@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { Sparkles, RefreshCw, CheckCircle, Search, Plus, Check } from 'lucide-react';
+import { Sparkles, RefreshCw, CheckCircle, Search, Plus, Check, Activity } from 'lucide-react';
 import { OPPORTUNITIES_DATABASE, OpportunityScan, GemType } from '../../data/assets';
 import { AsymmetryVisualizer, createAsymmetryMetrics } from '../AsymmetryVisualizer';
 import { LiveQuote, RadarGemFilter } from '../../types/market';
@@ -28,6 +28,14 @@ interface RadarOpportunitiesViewProps {
   onQuickAuditTicker: (ticker: string) => void;
   onAddTickerToWatchlist: (ticker: string) => void;
   opportunities?: OpportunityScan[];
+  onOpenChart?: (asset: {
+    ticker: string;
+    name: string;
+    tradingViewSymbol: string;
+    price: string;
+    change: string;
+    trafficLight?: 'VERDE' | 'AMBAR' | 'ROJO';
+  }) => void;
 }
 
 export const RadarOpportunitiesView: React.FC<RadarOpportunitiesViewProps> = ({
@@ -42,6 +50,7 @@ export const RadarOpportunitiesView: React.FC<RadarOpportunitiesViewProps> = ({
   onQuickAuditTicker,
   onAddTickerToWatchlist,
   opportunities = OPPORTUNITIES_DATABASE,
+  onOpenChart,
 }) => {
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -329,15 +338,36 @@ export const RadarOpportunitiesView: React.FC<RadarOpportunitiesViewProps> = ({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="pt-3 border-t border-[#F5F2EB] flex items-center justify-between gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => onQuickAuditTicker(opp.ticker)}
-                    className="px-3 py-1.5 rounded-lg bg-[#EFECE4] hover:bg-[#E5E1D5] text-slate-800 font-semibold transition flex items-center gap-1 cursor-pointer"
-                  >
-                    <Search className="w-3.5 h-3.5 text-slate-600" />
-                    <span>Auditar con IA</span>
-                  </button>
+                <div className="pt-3 border-t border-[#F5F2EB] flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onQuickAuditTicker(opp.ticker)}
+                      className="px-2.5 py-1.5 rounded-lg bg-[#EFECE4] hover:bg-[#E5E1D5] text-slate-800 font-semibold transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Search className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Auditar con IA</span>
+                    </button>
+
+                    {onOpenChart && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenChart({
+                          ticker: opp.ticker,
+                          name: opp.name,
+                          tradingViewSymbol: opp.ticker === 'OHLA' ? 'BME:OHLA' : opp.ticker === 'SAN' ? 'BME:SAN' : opp.ticker === 'REP' ? 'BME:REP' : opp.ticker === 'VOO' ? 'AMEX:VOO' : opp.ticker === 'BTC' ? 'BINANCE:BTCUSDT' : opp.ticker,
+                          price: live.price,
+                          change: live.change,
+                          trafficLight: 'VERDE',
+                        })}
+                        className="px-2.5 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 font-semibold transition flex items-center gap-1 cursor-pointer"
+                        title="Ver gráfico con indicadores institucionales (SMA 200, RSI)"
+                      >
+                        <Activity className="w-3.5 h-3.5 text-purple-700" />
+                        <span>Gráfico</span>
+                      </button>
+                    )}
+                  </div>
 
                   <button
                     type="button"

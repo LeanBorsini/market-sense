@@ -23,7 +23,8 @@ import {
   Zap, 
   Sparkles, 
   Copy, 
-  Check 
+  Check,
+  Activity 
 } from 'lucide-react';
 import { WHY_IT_MOVES_DATA, MovementCause, HorizonOutlook } from '../../data/marketSignals';
 import { auditTickerFundamentals } from '../../data/marketSignals';
@@ -51,6 +52,14 @@ interface WatchlistViewProps {
   copyText: (text: string) => void;
   isCopied: boolean;
   currentUser: any;
+  onOpenChart?: (asset: {
+    ticker: string;
+    name: string;
+    tradingViewSymbol: string;
+    price: string;
+    change: string;
+    trafficLight?: 'VERDE' | 'AMBAR' | 'ROJO';
+  }) => void;
 }
 
 export const WatchlistView: React.FC<WatchlistViewProps> = ({
@@ -73,6 +82,7 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({
   copyText,
   isCopied,
   currentUser,
+  onOpenChart,
 }) => {
   const getTrafficLightBadge = (light: 'VERDE' | 'AMBAR' | 'ROJO') => {
     if (light === 'VERDE') {
@@ -262,16 +272,39 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                      {/* Interactive Chart with Preloaded Indicators */}
+                      {onOpenChart && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenChart({
+                              ticker: cause.ticker,
+                              name: cause.name,
+                              tradingViewSymbol: cause.tradingViewSymbol,
+                              price: activePrice,
+                              change: liveQuote.change,
+                              trafficLight: cause.trafficLight,
+                            });
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+                          title="Abrir gráfico interactivo con SMA 200, EMA 50 y RSI 14 ya activados"
+                        >
+                          <Activity className="w-3.5 h-3.5 text-purple-700" />
+                          <span>Gráfico con Indicadores</span>
+                        </button>
+                      )}
+
                       {/* TradingView Direct Link */}
                       <a
                         href={`https://es.tradingview.com/chart/?symbol=${encodeURIComponent(cause.tradingViewSymbol)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-semibold transition flex items-center gap-1"
-                        title="Ver gráfico en tiempo real en TradingView"
+                        title="Ver gráfico en tiempo real en TradingView web"
                       >
                         <ArrowUpRight className="w-3.5 h-3.5" />
-                        <span>TradingView</span>
+                        <span className="hidden sm:inline">TradingView Web</span>
                       </a>
 
                       {/* Adjust Price Button */}

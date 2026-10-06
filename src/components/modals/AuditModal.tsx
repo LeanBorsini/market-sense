@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { X, Search, ShieldCheck, TrendingUp, Zap, HelpCircle } from 'lucide-react';
+import { X, Search, ShieldCheck, TrendingUp, Zap, HelpCircle, Activity } from 'lucide-react';
 import { MovementCause } from '../../data/marketSignals';
 
 interface AuditModalProps {
@@ -15,6 +15,14 @@ interface AuditModalProps {
   onClose: () => void;
   onAddToWatchlist: (ticker: string) => void;
   isAlreadyTracked: boolean;
+  onOpenChart?: (asset: {
+    ticker: string;
+    name: string;
+    tradingViewSymbol: string;
+    price: string;
+    change: string;
+    trafficLight?: 'VERDE' | 'AMBAR' | 'ROJO';
+  }) => void;
 }
 
 export const AuditModal: React.FC<AuditModalProps> = ({
@@ -22,6 +30,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   onClose,
   onAddToWatchlist,
   isAlreadyTracked,
+  onOpenChart,
 }) => {
   if (!auditedResult) return null;
 
@@ -112,14 +121,37 @@ export const AuditModal: React.FC<AuditModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-[#EDE8DE] gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer"
-          >
-            Cerrar Auditoría
-          </button>
+        <div className="flex flex-wrap items-center justify-between pt-3 border-t border-[#EDE8DE] gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer"
+            >
+              Cerrar Auditoría
+            </button>
+
+            {onOpenChart && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenChart({
+                    ticker: auditedResult.ticker,
+                    name: auditedResult.name,
+                    tradingViewSymbol: auditedResult.tradingViewSymbol,
+                    price: auditedResult.price,
+                    change: auditedResult.change,
+                    trafficLight: auditedResult.trafficLight,
+                  });
+                }}
+                className="px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer"
+                title="Abrir gráfico interactivo con SMA 200 y RSI 14"
+              >
+                <Activity className="w-3.5 h-3.5 text-purple-700" />
+                <span>Gráfico con Indicadores</span>
+              </button>
+            )}
+          </div>
 
           {!isAlreadyTracked ? (
             <button

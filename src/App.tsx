@@ -36,6 +36,7 @@ import { RadarOpportunitiesView } from './components/views/RadarOpportunitiesVie
 import { CalendarView } from './components/views/CalendarView';
 import { AuditModal } from './components/modals/AuditModal';
 import { ProfilesModal } from './components/modals/ProfilesModal';
+import { TradingViewModal } from './components/modals/TradingViewModal';
 import { ActiveSection, LiveQuote, LiveQuotesMap, RadarGemFilter, TypographyTheme } from './types/market';
 import { buildDailyBriefing, sendTelegramMessage } from './lib/telegram';
 
@@ -215,6 +216,14 @@ export default function App() {
   // ─── 4. SEARCH & AUDITOR STATE ───
   const [searchQuery, setSearchQuery] = useState('');
   const [auditedResult, setAuditedResult] = useState<MovementCause | null>(null);
+  const [selectedChartAsset, setSelectedChartAsset] = useState<{
+    ticker: string;
+    name: string;
+    tradingViewSymbol: string;
+    price: string;
+    change: string;
+    trafficLight?: 'VERDE' | 'AMBAR' | 'ROJO';
+  } | null>(null);
 
   const handleSearchAudit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -654,6 +663,7 @@ export default function App() {
             copyText={copyText}
             isCopied={isCopied}
             currentUser={currentUser}
+            onOpenChart={setSelectedChartAsset}
           />
         )}
 
@@ -680,6 +690,7 @@ export default function App() {
             onQuickAuditTicker={handleQuickAuditTicker}
             onAddTickerToWatchlist={addAuditedTickerToWatchlist}
             opportunities={OPPORTUNITIES_DATABASE}
+            onOpenChart={setSelectedChartAsset}
           />
         )}
 
@@ -696,6 +707,7 @@ export default function App() {
         onClose={() => setAuditedResult(null)}
         onAddToWatchlist={addAuditedTickerToWatchlist}
         isAlreadyTracked={auditedResult ? trackedTickers.includes(auditedResult.ticker) : false}
+        onOpenChart={setSelectedChartAsset}
       />
 
       <ProfilesModal
@@ -712,6 +724,20 @@ export default function App() {
         onSendTestDispatch={() => sendTelegramDispatch()}
         isSendingTelegram={isSendingTelegram}
       />
+
+      {/* ─── 5. INTERACTIVE TRADINGVIEW CHART MODAL (PRELOADED INDICATORS) ─── */}
+      {selectedChartAsset && (
+        <TradingViewModal
+          isOpen={!!selectedChartAsset}
+          onClose={() => setSelectedChartAsset(null)}
+          ticker={selectedChartAsset.ticker}
+          name={selectedChartAsset.name}
+          tradingViewSymbol={selectedChartAsset.tradingViewSymbol}
+          price={selectedChartAsset.price}
+          change={selectedChartAsset.change}
+          trafficLight={selectedChartAsset.trafficLight}
+        />
+      )}
     </div>
   );
 }

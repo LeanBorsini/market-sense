@@ -161,6 +161,14 @@ export const TradingViewModal: React.FC<TradingViewModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Quick mathematical reference levels derived from price
+  const numPrice = parseFloat(price.replace(/[^0-9.]/g, '')) || 0;
+  const currencySymbol = price.includes('€') ? '€' : price.includes('$') ? '$' : '';
+  const isCents = numPrice > 0 && numPrice < 5;
+  const approxS1 = numPrice > 0 ? (numPrice * 0.975).toFixed(isCents ? 4 : 2) : '';
+  const approxS2 = numPrice > 0 ? (numPrice * 0.950).toFixed(isCents ? 4 : 2) : '';
+  const approxR1 = numPrice > 0 ? (numPrice * 1.025).toFixed(isCents ? 4 : 2) : '';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/70 backdrop-blur-xs animate-fadeIn">
       <div 
@@ -351,8 +359,17 @@ export const TradingViewModal: React.FC<TradingViewModalProps> = ({
             <>
               <span className="flex items-center gap-1 text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold">
                 <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                Puntos Pivote (S1, S2, R1, R2 Matemáticos)
+                Puntos Pivote en Gráfico (S1, S2, R1, R2)
               </span>
+              {approxS1 && (
+                <span className="flex items-center gap-2 px-2 py-0.5 rounded bg-white border border-[#DDD8CD] text-[11px] font-mono text-slate-700">
+                  <span>Suelo 1: <strong className="text-emerald-700">{approxS1} {currencySymbol}</strong></span>
+                  <span>·</span>
+                  <span>Suelo 2: <strong className="text-emerald-700">{approxS2} {currencySymbol}</strong></span>
+                  <span>·</span>
+                  <span>Techo 1: <strong className="text-rose-700">{approxR1} {currencySymbol}</strong></span>
+                </span>
+              )}
               <span className="flex items-center gap-1 text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 font-bold">
                 <span className="w-2 h-2 rounded-full bg-blue-600"></span>
                 SMA 200

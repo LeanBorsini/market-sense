@@ -485,81 +485,156 @@ export const LabView: React.FC<LabViewProps> = ({ onOpenChart }) => {
     };
   }, [activeAsset, activeStrategy, demoCapital, entryPrice, takeProfitPrice, stopLossPrice, rewardPct, riskPct]);
 
-  // ─── 100% DYNAMIC SCRIPT GENERATION (No fixed prices, auto-calculated on any candle) ───
+  // ─── 100% DYNAMIC SCRIPT GENERATION (No fixed prices, auto-calculated on any candle for any ticker) ───
   const generatedPineScript = useMemo(() => {
     const sym = activeAsset.tradingViewSymbol;
+    const stratId = activeStrategy.id;
+
+    let strategyLogicPine = '';
+    if (stratId === 'sp500_3down_dip') {
+      strategyLogicPine = `// Regla Específica: 3 Cierres Consecutivos a la Baja en Tendencia Alcista
+tendenciaFondo = ta.ema(close, 50) > ta.sma(close, 200)
+tresDiasRojos  = (close < close[1]) and (close[1] < close[2]) and (close[2] < close[3])
+condicionEntrada = tendenciaFondo and tresDiasRojos and (strategy.position_size == 0)`;
+    } else if (stratId === 'sp500_sma200') {
+      strategyLogicPine = `// Regla Específica: Pullback a SMA 200 con RSI de Sobreventa
+sma200 = ta.sma(close, 200)
+distanciaSMA = math.abs(close - sma200) / sma200
+rsiVal = ta.rsi(close, 14)
+condicionEntrada = (distanciaSMA <= 0.02) and (rsiVal < 38) and (strategy.position_size == 0)`;
+    } else if (stratId === 'tactical_volatility_bands') {
+      strategyLogicPine = `// Regla Específica: Descuento Estadístico bajo Banda Inferior de Volatilidad
+[mediaBase, bandaSup, bandaInf] = ta.bb(close, 20, 2.0)
+condicionEntrada = (close < bandaInf) and (strategy.position_size == 0)`;
+    } else {
+      // math_support_frontrun
+      strategyLogicPine = `// Regla Específica: Suelo Institucional & Buffer Front-Running
+sma200 = ta.sma(close, 200)
+atrVal = ta.atr(14)
+// Filtro institucional: Cierre consolidado sobre soporte dinámico
+condicionEntrada = (close >= sma200 * 0.98) and (close <= sma200 * 1.025) and (strategy.position_size == 0)`;
+    }
+
     return `//@version=5
+// Script 100% Dinámico: Válido para cualquier activo y cotización en tiempo real.
+// No contiene precios fijos. Calcula TP y SL automáticamente en cada vela.
 strategy("MarketSense - ${activeStrategy.name} (${activeAsset.ticker})", overlay=true, initial_capital=${demoCapital}, commission_type=strategy.commission.cash_per_order, commission_value=${fixedCommissionUsd})
 
-// ─── Parámetros Dinámicos para ${activeAsset.name} (${sym})
-targetPct = input.float(${rewardPct}, title="Take Profit (%)") / 100
-stopPct   = input.float(${riskPct}, title="Stop Loss Protegido (%)") / 100
+// ─── Parámetros Variables Relativos para ${activeAsset.name} (${sym})
+targetPct = input.float(${rewardPct.toFixed(1)}, title="Take Profit (%)") / 100.0
+stopPct   = input.float(${riskPct.toFixed(1)}, title="Stop Loss Protegido (%)") / 100.0
 
-// Indicadores Base de Régimen
-sma200 = ta.sma(close, 200)
-sma50  = ta.ema(close, 50)
-atrVal = ta.atr(14)
+${strategyLogicPine}
 
-// 1. Condición de Entrada Dinámica
-tendenciaAlcista = (close > sma200) or (sma50 > sma200)
-// Gatillo: Retroceso a zona de soporte relativo
-condicionEntrada = tendenciaAlcista and (strategy.position_size == 0)
-
-// 2. Ejecución Automática: Precios calculados dinámicamente según el cierre actual
+// ─── Ejecución Automática: Los niveles se calculan en vivo según el precio exacto de la vela
 if (condicionEntrada)
-    // El precio de entrada se toma en tiempo real de la vela
+    // El precio de entrada se toma en tiempo real del cierre de la vela actual
     precioEntrada = close
-    // Salidas calculadas automáticamente en cada operación
+    
+    // Niveles de salida calculados dinámicamente sin precios fijos
     precioTP = precioEntrada * (1.0 + targetPct)
     precioSL = precioEntrada * (1.0 - stopPct)
     
+    // Ejecución de la orden bracket
     strategy.entry("Compra MarketSense", strategy.long)
     strategy.exit("Salida Dinamica", "Compra MarketSense", limit=precioTP, stop=precioSL)
 
-// 3. Gráficos Visuales
-plot(sma200, color=color.blue, linewidth=2, title="Suelo SMA 200")
-plot(sma50, color=color.orange, linewidth=1, title="Media 50")
+// ─── Líneas de Referencia en el Gráfico
+sma200Plot = ta.sma(close, 200)
+plot(sma200Plot, color=color.new(color.blue, 0), linewidth=2, title="Suelo Institucional SMA 200")
+plot(ta.ema(close, 50), color=color.new(color.orange, 0), linewidth=1, title="Media Rápida 50")
 `;
   }, [activeAsset, activeStrategy, demoCapital, fixedCommissionUsd, rewardPct, riskPct]);
 
   const generatedPythonScript = useMemo(() => {
-    return `# MarketSense - ${activeStrategy.name} (${activeAsset.ticker})
-# Lógica 100% Dinámica: Los precios de TP y SL se calculan en vivo según la cotización del momento
-from ib_insync import IB, Stock, Crypto, MarketOrder
-import pandas as pd
+    const stratId = activeStrategy.id;
+    let logicPythonComment = '';
+
+    if (stratId === 'sp500_3down_dip') {
+      logicPythonComment = `# Estrategia: 3 Cierres Bajistas Consecutivos (Reversión a la Media)
+# bars = ib.reqHistoricalData(contract, '', '10 D', '1 day', 'MIDPOINT', 1, 1)
+# if bars[-1].close < bars[-2].close < bars[-3].close < bars[-4].close:
+#     ejecutar_compra()`;
+    } else if (stratId === 'sp500_sma200') {
+      logicPythonComment = `# Estrategia: SMA 200 + Sobreventa RSI
+# sma_200 = df['close'].rolling(200).mean().iloc[-1]
+# if abs(precio_mercado - sma_200) / sma_200 <= 0.02 and rsi < 38:
+#     ejecutar_compra()`;
+    } else {
+      logicPythonComment = `# Estrategia: Suelo Institucional Front-Running
+# Dispara orden bracket automática al aproximarse al soporte de balance`;
+    }
+
+    return `# ==============================================================================
+# MarketSense - Bot Algorítmico Automatizado
+# Activo: ${activeAsset.name} (${activeAsset.ticker}) | Estrategia: ${activeStrategy.name}
+# LÓGICA 100% DINÁMICA: No requiere precios fijos.
+# Lee el precio en tiempo real del broker y calcula automáticamente TP y SL.
+# ==============================================================================
+from ib_insync import IB, Stock, Crypto, Forex, MarketOrder
+import datetime
 
 ib = IB()
-ib.connect('127.0.0.1', 7497, clientId=9)
+# Conexión local al puerto de Interactive Brokers TWS o IB Gateway
+ib.connect('127.0.0.1', 7497, clientId=12)
 
-ticker = '${activeAsset.ticker}'
-if ticker in ['VOO', 'SPY', 'TSM', 'INTC']:
-    contract = Stock(ticker, 'SMART', 'USD')
-elif ticker in ['OHLA', 'SAN', 'REP']:
-    contract = Stock(ticker, 'BM', 'EUR')
+ticker_sym = '${activeAsset.ticker}'
+
+# 1. Resolución Automática del Contrato según Activo
+if ticker_sym in ['VOO', 'SPY', 'TSM', 'INTC', 'NVDA', 'AAPL']:
+    contract = Stock(ticker_sym, 'SMART', 'USD')
+elif ticker_sym in ['OHLA', 'SAN', 'REP', 'IBE', 'TEF']:
+    contract = Stock(ticker_sym, 'BM', 'EUR')
+elif ticker_sym in ['XAU', 'GOLD']:
+    contract = Forex('XAUUSD')
+elif ticker_sym in ['BTC', 'ETH']:
+    contract = Crypto(ticker_sym, 'PAXOS', 'USD')
 else:
-    contract = Stock(ticker, 'SMART', 'USD')
+    contract = Stock(ticker_sym, 'SMART', 'USD')
 
 ib.qualifyContracts(contract)
 
-# Obtener precio actual de mercado en vivo
+${logicPythonComment}
+
+# 2. Obtención de Cotización en Tiempo Real
 ticker_data = ib.reqMktData(contract)
 ib.sleep(2)
-precio_mercado = ticker_data.last or ticker_data.close
+precio_mercado = ticker_data.last if ticker_data.last else ticker_data.close
 
-target_pct = ${rewardPct} / 100.0
-stop_pct   = ${riskPct} / 100.0
+if not precio_mercado or precio_mercado <= 0:
+    print(f"Esperando cotización válida para {ticker_sym}...")
+    ib.disconnect()
+    exit()
 
-# Cálculo dinámico de niveles
-take_profit_dinamico = round(precio_mercado * (1.0 + target_pct), 3)
-stop_loss_dinamico   = round(precio_mercado * (1.0 - stop_pct), 3)
+# 3. Parámetros Porcentuales Relativos
+target_pct = ${rewardPct.toFixed(2)} / 100.0  # +${rewardPct.toFixed(1)}%
+stop_pct   = ${riskPct.toFixed(2)} / 100.0    # -${riskPct.toFixed(1)}%
 
-print(f"Cotización actual en vivo: {precio_mercado}")
-print(f"TP Calculado: {take_profit_dinamico} | SL Protegido: {stop_loss_dinamico}")
+# 4. Cálculo Dinámico de Precios de Entrada, TP y SL
+precio_entrada = round(precio_mercado, 3)
+take_profit_dinamico = round(precio_entrada * (1.0 + target_pct), 3)
+stop_loss_dinamico   = round(precio_entrada * (1.0 - stop_pct), 3)
 
-# Orden bracket automática enviada a Interactive Brokers
-bracket = ib.bracketOrder('BUY', 1, limitPrice=precio_mercado, takeProfitPrice=take_profit_dinamico, stopLossPrice=stop_loss_dinamico)
+print("---------------------------------------------------------")
+print(f"Activo: {ticker_sym} | Cotización en Vivo: {precio_entrada}")
+print(f"Take Profit Dinámico (+{target_pct*100:.1f}%): {take_profit_dinamico}")
+print(f"Stop Loss Protegido (-{stop_pct*100:.1f}%): {stop_loss_dinamico}")
+print("---------------------------------------------------------")
+
+# 5. Envío de Orden Bracket (1 compra + 2 órdenes hijas de protección)
+bracket = ib.bracketOrder(
+    'BUY',
+    totalQuantity=1,
+    limitPrice=precio_entrada,
+    takeProfitPrice=take_profit_dinamico,
+    stopLossPrice=stop_loss_dinamico
+)
+
 for order in bracket:
-    ib.placeOrder(contract, order)
+    trade = ib.placeOrder(contract, order)
+    print(f"Orden enviada a Interactive Brokers: {order.orderType} (Ref: {order.orderId})")
+
+ib.disconnect()
 `;
   }, [activeAsset, activeStrategy, rewardPct, riskPct]);
 

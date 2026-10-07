@@ -199,13 +199,13 @@ export const TradingViewModal: React.FC<TradingViewModalProps> = ({
           {/* Quick Actions & Close */}
           <div className="flex items-center gap-2">
             <a
-              href={`https://es.tradingview.com/chart/?symbol=${encodeURIComponent(formattedSymbol)}`}
+              href={`https://es.tradingview.com/symbols/${encodeURIComponent(formattedSymbol.replace(':', '-'))}/`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-semibold transition flex items-center gap-1"
-              title="Abrir este gráfico en pantalla completa en la web oficial de TradingView"
+              title="Abrir la cotización y gráfico oficial de este activo en TradingView"
             >
-              <span>TradingView Web</span>
+              <span>TradingView Oficial</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
 

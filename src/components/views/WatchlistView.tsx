@@ -316,14 +316,14 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({
 
                       {/* TradingView Direct Link */}
                       <a
-                        href={`https://es.tradingview.com/chart/?symbol=${encodeURIComponent(resolveTradingViewSymbol(cause.ticker, cause.tradingViewSymbol))}`}
+                        href={`https://es.tradingview.com/symbols/${encodeURIComponent(resolveTradingViewSymbol(cause.ticker, cause.tradingViewSymbol).replace(':', '-'))}/`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-semibold transition flex items-center gap-1"
-                        title="Ver gráfico en tiempo real en TradingView web"
+                        title="Ver ficha y cotización en tiempo real en TradingView oficial"
                       >
                         <ArrowUpRight className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">TradingView Web</span>
+                        <span className="hidden sm:inline">TradingView Oficial</span>
                       </a>
 
                       {/* Adjust Price Button */}

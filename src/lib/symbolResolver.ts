@@ -41,8 +41,14 @@ export function resolveTradingViewSymbol(inputSymbol: string, providedTvSymbol?:
   }
 
   // 3. Major Indices & ETFs
-  if (clean === 'VOO' || clean === 'VUSA' || clean === 'SP500' || clean === 'S&P500' || clean === 'SPX' || clean === 'SPY') {
+  if (clean === 'VOO' || clean === 'VUSA' || clean === 'SP500' || clean === 'S&P500') {
     return 'AMEX:VOO';
+  }
+  if (clean === 'SPY') {
+    return 'AMEX:SPY';
+  }
+  if (clean === 'SPX') {
+    return 'SP:SPX';
   }
   if (clean === 'QQQ' || clean === 'NASDAQ' || clean === 'NDX') {
     return 'NASDAQ:QQQ';

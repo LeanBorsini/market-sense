@@ -55,10 +55,10 @@ export const LAB_ASSETS: Record<string, LabAsset> = {
     ticker: 'VOO',
     name: 'Vanguard S&P 500 ETF (S&P 500)',
     category: 'Índices',
-    price: '$538.10',
-    numericPrice: 538.10,
+    price: '$584.50',
+    numericPrice: 584.50,
     currency: '$',
-    mathSupportPrice: '$512.40 - $518.00',
+    mathSupportPrice: '$552.00 - $558.00',
     mathSupportType: 'Suelo de balance corporativo agregado + Media SMA 200 días',
     volatilityPipsAvg: 45,
     pipUnitName: 'puntos / céntimos',
@@ -91,10 +91,10 @@ export const LAB_ASSETS: Record<string, LabAsset> = {
     ticker: 'OHLA',
     name: 'OHLA Infraestructuras (Bolsa de Madrid)',
     category: 'Acciones BME',
-    price: '0.308 €',
-    numericPrice: 0.308,
+    price: '0.3614 €',
+    numericPrice: 0.3614,
     currency: '€',
-    mathSupportPrice: '0.285 € - 0.295 €',
+    mathSupportPrice: '0.320 € - 0.335 €',
     mathSupportType: 'Suelo de balance contable: Cartera récord de 8.200 M€ en contratos',
     volatilityPipsAvg: 30,
     pipUnitName: 'céntimos de euro (ticks)',
@@ -109,10 +109,10 @@ export const LAB_ASSETS: Record<string, LabAsset> = {
     ticker: 'BTC',
     name: 'Bitcoin (Criptoactivo de Reserva)',
     category: 'Cripto',
-    price: '$83,064.00',
-    numericPrice: 83064.00,
+    price: '$83,850.00',
+    numericPrice: 83850.00,
     currency: '$',
-    mathSupportPrice: '$68,500.00 - $72,000.00',
+    mathSupportPrice: '$74,000.00 - $78,000.00',
     mathSupportType: 'Coste marginal de minado post-Halving + Techo anterior convertido en suelo',
     volatilityPipsAvg: 250,
     pipUnitName: 'dólares / satoshis',
@@ -127,10 +127,10 @@ export const LAB_ASSETS: Record<string, LabAsset> = {
     ticker: 'TSM',
     name: 'Taiwan Semiconductor (TSMC)',
     category: 'Tecnología Global',
-    price: '$174.50',
-    numericPrice: 174.50,
+    price: '$192.30',
+    numericPrice: 192.30,
     currency: '$',
-    mathSupportPrice: '$160.00 - $164.50',
+    mathSupportPrice: '$176.00 - $182.00',
     mathSupportType: 'Foso económico insustituible (Monopolio 3nm) + PER forward 18x',
     volatilityPipsAvg: 50,
     pipUnitName: 'céntimos de dólar',
@@ -145,10 +145,10 @@ export const LAB_ASSETS: Record<string, LabAsset> = {
     ticker: 'SAN',
     name: 'Banco Santander (BME)',
     category: 'Acciones BME',
-    price: '4.42 €',
-    numericPrice: 4.42,
+    price: '4.645 €',
+    numericPrice: 4.645,
     currency: '€',
-    mathSupportPrice: '4.15 € - 4.22 €',
+    mathSupportPrice: '4.35 € - 4.42 €',
     mathSupportType: 'Soporte de dividendo del 6% + Programa de recompra de acciones',
     volatilityPipsAvg: 25,
     pipUnitName: 'céntimos de euro',
@@ -350,16 +350,32 @@ export const LabView: React.FC<LabViewProps> = ({ onOpenChart }) => {
   const riskPct = activeAsset.stopLossPct;
   const riskRewardRatio = (rewardPct / riskPct).toFixed(2);
 
-  // Capital returns & risks
-  const simulatedGainEuros = ((demoCapital * (rewardPct / 100))).toFixed(2);
-  const simulatedLossEuros = ((demoCapital * (riskPct / 100))).toFixed(2);
+  // Friction costs per trade (spread in pips + fixed ticket broker commission)
   const frictionCostPerTrade = (spreadPips * pipValue) + fixedCommissionUsd;
 
+  // Real Pip Distance:
+  // activeAsset.volatilityPipsAvg is the typical stop distance in pips for this asset
+  const stopLossPips = Math.round(activeAsset.volatilityPipsAvg);
+  const takeProfitPips = Math.round(stopLossPips * (rewardPct / riskPct));
+
+  // Dynamic Monetary Returns: 100% driven by pipValue!
+  const grossGainEuros = takeProfitPips * pipValue;
+  const netGainEuros = Math.max(0, grossGainEuros - frictionCostPerTrade);
+  const simulatedGainEuros = netGainEuros.toFixed(2);
+
+  const grossLossEuros = stopLossPips * pipValue;
+  const totalLossEuros = grossLossEuros + frictionCostPerTrade;
+  const simulatedLossEuros = totalLossEuros.toFixed(2);
+
+  // Percentage of account capital at risk on this trade:
+  const tradeRewardPctOfAccount = ((netGainEuros / demoCapital) * 100).toFixed(1);
+  const tradeRiskPctOfAccount = ((totalLossEuros / demoCapital) * 100).toFixed(1);
+
   // Pip risk stress test calculations
-  const simScenarioPips = activeAsset.volatilityPipsAvg;
-  const adverseLossAmount = simScenarioPips * pipValue;
+  const simScenarioPips = stopLossPips;
+  const adverseLossAmount = totalLossEuros;
   const adverseLossPct = (adverseLossAmount / demoCapital) * 100;
-  const tripleLossAmount = (adverseLossAmount * 3) + (frictionCostPerTrade * 3);
+  const tripleLossAmount = totalLossEuros * 3;
   const tripleLossPct = (tripleLossAmount / demoCapital) * 100;
 
   // ─── SUITABILITY ASSESSMENT (¿Sirve o no sirve para este activo?) ───
@@ -466,9 +482,9 @@ export const LabView: React.FC<LabViewProps> = ({ onOpenChart }) => {
     ];
 
     const recentTradesLog = [
-      { date: 'Hace 3 semanas', type: 'COMPRA LIMIT', entry: `${activeAsset.currency}${entryPrice.toFixed(2)}`, exit: `${activeAsset.currency}${takeProfitPrice.toFixed(2)}`, pnl: `+${rewardPct.toFixed(1)}%`, pnlEur: `+${(demoCapital * (rewardPct / 100)).toFixed(2)} €`, status: 'GANADORA (TP)', reason: 'Rebote limpio en soporte matemático' },
-      { date: 'Hace 6 semanas', type: 'COMPRA LIMIT', entry: `${activeAsset.currency}${entryPrice.toFixed(2)}`, exit: `${activeAsset.currency}${takeProfitPrice.toFixed(2)}`, pnl: `+${(rewardPct * 0.9).toFixed(1)}%`, pnlEur: `+${(demoCapital * ((rewardPct * 0.9) / 100)).toFixed(2)} €`, status: 'GANADORA (TP)', reason: 'Absorción de ventas tras dato macro' },
-      { date: 'Hace 2 meses', type: 'COMPRA LIMIT', entry: `${activeAsset.currency}${entryPrice.toFixed(2)}`, exit: `${activeAsset.currency}${stopLossPrice.toFixed(2)}`, pnl: `-${riskPct.toFixed(1)}%`, pnlEur: `-${(demoCapital * (riskPct / 100)).toFixed(2)} €`, status: 'PÉRDIDA CORTADA (SL)', reason: 'Stop loss ejecutado de forma disciplinada' }
+      { date: 'Hace 3 semanas', type: 'COMPRA LIMIT', entry: `${activeAsset.currency}${entryPrice.toFixed(2)}`, exit: `${activeAsset.currency}${takeProfitPrice.toFixed(2)}`, pnl: `+${rewardPct.toFixed(1)}%`, pnlEur: `+${simulatedGainEuros} € (+${tradeRewardPctOfAccount}%)`, status: 'GANADORA (TP)', reason: 'Rebote limpio en soporte matemático' },
+      { date: 'Hace 6 semanas', type: 'COMPRA LIMIT', entry: `${activeAsset.currency}${entryPrice.toFixed(2)}`, exit: `${activeAsset.currency}${takeProfitPrice.toFixed(2)}`, pnl: `+${(rewardPct * 0.9).toFixed(1)}%`, pnlEur: `+${(parseFloat(simulatedGainEuros) * 0.9).toFixed(2)} € (+${(parseFloat(tradeRewardPctOfAccount) * 0.9).toFixed(1)}%)`, status: 'GANADORA (TP)', reason: 'Absorción de ventas tras dato macro' },
+      { date: 'Hace 2 meses', type: 'COMPRA LIMIT', entry: `${activeAsset.currency}${entryPrice.toFixed(2)}`, exit: `${activeAsset.currency}${stopLossPrice.toFixed(2)}`, pnl: `-${riskPct.toFixed(1)}%`, pnlEur: `-${simulatedLossEuros} € (-${tradeRiskPctOfAccount}%)`, status: 'PÉRDIDA CORTADA (SL)', reason: 'Stop loss ejecutado de forma disciplinada' }
     ];
 
     return {
@@ -483,7 +499,7 @@ export const LabView: React.FC<LabViewProps> = ({ onOpenChart }) => {
       yearBreakdown,
       recentTradesLog
     };
-  }, [activeAsset, activeStrategy, demoCapital, entryPrice, takeProfitPrice, stopLossPrice, rewardPct, riskPct]);
+  }, [activeAsset, activeStrategy, demoCapital, entryPrice, takeProfitPrice, stopLossPrice, rewardPct, riskPct, simulatedGainEuros, simulatedLossEuros, tradeRewardPctOfAccount, tradeRiskPctOfAccount]);
 
   // ─── 100% DYNAMIC SCRIPT GENERATION (No fixed prices, auto-calculated on any candle for any ticker) ───
   const generatedPineScript = useMemo(() => {
@@ -884,6 +900,46 @@ Condición Prohibida: ${activeStrategy.forbiddenWhen}`;
             </p>
           </div>
         </div>
+
+        {/* ─── MONITOR DINÁMICO DE IMPACTO EN CUENTA EN VIVO ─── */}
+        <div className="p-4 rounded-xl bg-white border border-[#DDD8CD] space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-[#EFECE4] pb-2 text-xs">
+            <span className="font-bold text-slate-800 flex items-center gap-1.5 font-sans">
+              <Zap className="w-4 h-4 text-amber-600" />
+              Monitor Dinámico de Riesgo & Retorno ({pipValue.toFixed(2)} €/pip · Saldo: {demoCapital.toLocaleString()} €)
+            </span>
+            <span className="text-[11px] font-mono text-slate-500">
+              Fricción total (Spread + Comisión): <strong>{frictionCostPerTrade.toFixed(2)} €</strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 space-y-1">
+              <span className="text-[10px] uppercase font-bold text-emerald-800 block">Si toca Take Profit (+{takeProfitPips} pips)</span>
+              <div className="text-lg font-bold text-emerald-700">+{simulatedGainEuros} €</div>
+              <span className="text-emerald-900 text-[11px] block">
+                Ganancia neta: <strong>+{tradeRewardPctOfAccount}%</strong> de tu cuenta de {demoCapital.toLocaleString()} €
+              </span>
+            </div>
+
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 space-y-1">
+              <span className="text-[10px] uppercase font-bold text-rose-800 block">Si salta Stop Loss (-{stopLossPips} pips)</span>
+              <div className="text-lg font-bold text-rose-700">-{simulatedLossEuros} €</div>
+              <span className="text-rose-900 text-[11px] block">
+                Pérdida máxima: <strong>-{tradeRiskPctOfAccount}%</strong> de tu cuenta de {demoCapital.toLocaleString()} €
+              </span>
+            </div>
+          </div>
+
+          {Number(tradeRiskPctOfAccount) >= 5.0 && (
+            <div className="p-2.5 rounded-lg bg-rose-100 border border-rose-300 text-rose-900 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
+              <span>
+                <strong>¡Alerta de Sobreapalancamiento!</strong> Arriesgas el {tradeRiskPctOfAccount}% de tu capital en un solo intento. Tres pérdidas seguidas te costarían <strong>-{tripleLossAmount.toFixed(2)} € (-{tripleLossPct.toFixed(1)}%)</strong>. Reduce a 0.01 (0.10 €/pip) para proteger tu cuenta.
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ─── PASO 2: ELEGIR ESTRATEGIA (CON EVALUACIÓN DE IDONEIDAD) ─── */}
@@ -1027,7 +1083,7 @@ Condición Prohibida: ${activeStrategy.forbiddenWhen}`;
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-2.5 text-xs font-mono">
                   <span className="font-bold text-slate-300">ORDEN BRACKET DINÁMICA: {activeAsset.ticker}</span>
                   <span className="text-slate-400">
-                    Ganancia Estimada: <strong className="text-emerald-400">+{simulatedGainEuros} €</strong> | Riesgo Máx: <strong className="text-rose-400">-{simulatedLossEuros} €</strong>
+                    Ganancia: <strong className="text-emerald-400">+{simulatedGainEuros} € (+{tradeRewardPctOfAccount}%)</strong> | Riesgo Máx: <strong className="text-rose-400">-{simulatedLossEuros} € (-{tradeRiskPctOfAccount}%)</strong>
                   </span>
                 </div>
 
@@ -1037,7 +1093,7 @@ Condición Prohibida: ${activeStrategy.forbiddenWhen}`;
                     <div className="flex items-center gap-2">
                       <span className="px-1.5 py-0.5 rounded bg-emerald-500 text-slate-950 font-bold text-[10px]">TAKE PROFIT</span>
                       <span className="font-bold text-emerald-300 text-sm">{activeAsset.currency}{takeProfitPrice.toFixed(2)}</span>
-                      <span className="text-emerald-400 text-xs">(+{rewardPct.toFixed(1)}% · +{simulatedGainEuros} €)</span>
+                      <span className="text-emerald-400 text-xs">(+{rewardPct.toFixed(1)}% · +{takeProfitPips} pips · +{simulatedGainEuros} €)</span>
                     </div>
                     <span className="text-[10px] text-emerald-400/80 font-sans hidden sm:inline">Salida antes de resistencia</span>
                   </div>
@@ -1066,7 +1122,7 @@ Condición Prohibida: ${activeStrategy.forbiddenWhen}`;
                     <div className="flex items-center gap-2">
                       <span className="px-1.5 py-0.5 rounded bg-rose-500 text-white font-bold text-[10px]">STOP LOSS</span>
                       <span className="font-bold text-rose-300 text-sm">{activeAsset.currency}{stopLossPrice.toFixed(2)}</span>
-                      <span className="text-rose-400 text-xs">(-{riskPct.toFixed(1)}% · -{simulatedLossEuros} €)</span>
+                      <span className="text-rose-400 text-xs">(-{riskPct.toFixed(1)}% · -{stopLossPips} pips · -{simulatedLossEuros} €)</span>
                     </div>
                     <span className="text-[10px] text-rose-300/80 font-sans hidden sm:inline">Blindado a 1.5x ATR bajo el suelo</span>
                   </div>

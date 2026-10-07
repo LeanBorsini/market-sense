@@ -15,6 +15,7 @@ import { Sparkles, RefreshCw, CheckCircle, Search, Plus, Check, Activity } from 
 import { OPPORTUNITIES_DATABASE, OpportunityScan, GemType } from '../../data/assets';
 import { AsymmetryVisualizer, createAsymmetryMetrics } from '../AsymmetryVisualizer';
 import { LiveQuote, RadarGemFilter } from '../../types/market';
+import { resolveTradingViewSymbol } from '../../lib/symbolResolver';
 
 interface RadarOpportunitiesViewProps {
   radarLastScan: string;
@@ -355,7 +356,7 @@ export const RadarOpportunitiesView: React.FC<RadarOpportunitiesViewProps> = ({
                         onClick={() => onOpenChart({
                           ticker: opp.ticker,
                           name: opp.name,
-                          tradingViewSymbol: opp.ticker === 'OHLA' ? 'BME:OHLA' : opp.ticker === 'SAN' ? 'BME:SAN' : opp.ticker === 'REP' ? 'BME:REP' : opp.ticker === 'VOO' ? 'AMEX:VOO' : opp.ticker === 'BTC' ? 'BINANCE:BTCUSDT' : opp.ticker,
+                          tradingViewSymbol: resolveTradingViewSymbol(opp.ticker),
                           price: live.price,
                           change: live.change,
                           trafficLight: 'VERDE',

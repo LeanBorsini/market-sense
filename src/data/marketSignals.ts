@@ -1,3 +1,5 @@
+import { resolveTradingViewSymbol } from '../lib/symbolResolver';
+
 export interface HorizonOutlook {
   trend: 'AL_ALZA' | 'ESTABLE' | 'A_LA_BAJA';
   label: 'Al alza' | 'Estable' | 'A la baja';
@@ -307,6 +309,84 @@ export const WHY_IT_MOVES_DATA: Record<string, MovementCause> = {
       period: 'Largo (1-3a)',
       summary: 'Transición hacia renovables y upstream eficiente con bajo coste de extracción.'
     }
+  },
+  GOLD: {
+    ticker: 'GOLD',
+    name: 'Oro al Contado (XAU/USD · Gold Spot)',
+    price: '$2,654.80',
+    change: '+0.42%',
+    isPositive: true,
+    tradingViewSymbol: 'OANDA:XAUUSD',
+    exchange: 'Mercado de Materias Primas / Metales Preciosos',
+    rootCause: 'Compras soberanas continuadas por parte de bancos centrales (China, India, Polonia) y demanda de cobertura ante el ciclo de recortes de tipos de interés globales.',
+    classification: 'SEÑAL_FUNDAMENTAL',
+    noiseExplanation: 'Las fluctuaciones diarias del 1% responden a ajustes del índice DXY del dólar. La tendencia secular de desdolarización y reservas de oro físico permanece intacta.',
+    cashFlowImpact: 'Activo de reserva sin riesgo de quiebra ni riesgo de contraparte.',
+    debtSolvencyImpact: 'Excelente: Activo refugio de balance con máxima liquidez internacional.',
+    ebitdaImpact: 'No aplica (Metal precioso / Materia prima de reserva monetaria).',
+    verdict: 'Pilar defensivo para cualquier cartera. Compras escalonadas en correcciones técnicas hacia soportes matemáticos.',
+    trafficLight: 'VERDE',
+    trafficLightReason: 'Fuerza estructural por compras de bancos centrales y ciclo de tipos bajos.',
+    shortTermOutlook: {
+      trend: 'AL_ALZA',
+      label: 'Al alza',
+      arrow: '↗',
+      period: 'Corto (1-3m)',
+      summary: 'Respaldado por la caída de rendimientos de los bonos del Tesoro.'
+    },
+    midTermOutlook: {
+      trend: 'AL_ALZA',
+      label: 'Al alza',
+      arrow: '↗',
+      period: 'Medio (6-12m)',
+      summary: 'Demanda estructural insatisfecha de bancos centrales de mercados emergentes.'
+    },
+    longTermOutlook: {
+      trend: 'AL_ALZA',
+      label: 'Al alza',
+      arrow: '↗',
+      period: 'Largo (1-3a)',
+      summary: 'Reserva de valor histórica ante la expansión de masa monetaria global.'
+    }
+  },
+  XAU: {
+    ticker: 'XAU',
+    name: 'Oro al Contado (XAU/USD · Gold Spot)',
+    price: '$2,654.80',
+    change: '+0.42%',
+    isPositive: true,
+    tradingViewSymbol: 'OANDA:XAUUSD',
+    exchange: 'Mercado de Materias Primas / Metales Preciosos',
+    rootCause: 'Compras soberanas continuadas por parte de bancos centrales (China, India, Polonia) y demanda de cobertura ante el ciclo de recortes de tipos de interés globales.',
+    classification: 'SEÑAL_FUNDAMENTAL',
+    noiseExplanation: 'Las fluctuaciones diarias del 1% responden a ajustes del índice DXY del dólar. La tendencia secular de desdolarización y reservas de oro físico permanece intacta.',
+    cashFlowImpact: 'Activo de reserva sin riesgo de quiebra ni riesgo de contraparte.',
+    debtSolvencyImpact: 'Excelente: Activo refugio de balance con máxima liquidez internacional.',
+    ebitdaImpact: 'No aplica (Metal precioso / Materia prima de reserva monetaria).',
+    verdict: 'Pilar defensivo para cualquier cartera. Compras escalonadas en correcciones técnicas hacia soportes matemáticos.',
+    trafficLight: 'VERDE',
+    trafficLightReason: 'Fuerza estructural por compras de bancos centrales y ciclo de tipos bajos.',
+    shortTermOutlook: {
+      trend: 'AL_ALZA',
+      label: 'Al alza',
+      arrow: '↗',
+      period: 'Corto (1-3m)',
+      summary: 'Respaldado por la caída de rendimientos de los bonos del Tesoro.'
+    },
+    midTermOutlook: {
+      trend: 'AL_ALZA',
+      label: 'Al alza',
+      arrow: '↗',
+      period: 'Medio (6-12m)',
+      summary: 'Demanda estructural insatisfecha de bancos centrales de mercados emergentes.'
+    },
+    longTermOutlook: {
+      trend: 'AL_ALZA',
+      label: 'Al alza',
+      arrow: '↗',
+      period: 'Largo (1-3a)',
+      summary: 'Reserva de valor histórica ante la expansión de masa monetaria global.'
+    }
   }
 };
 
@@ -468,19 +548,26 @@ export const GLOBAL_MARKET_PULSE: MarketGlobalPulse[] = [
 
 // 5. AUDITOR FUNDAMENTAL UNIVERSAL PARA CUALQUIER TICKER
 export function auditTickerFundamentals(query: string): MovementCause {
-  const upper = query.trim().toUpperCase();
+  let upper = query.trim().toUpperCase();
+  if (upper === 'ORO' || upper === 'GOLD' || upper === 'XAUUSD') {
+    return WHY_IT_MOVES_DATA['XAU'] || WHY_IT_MOVES_DATA['GOLD'];
+  }
+  if (upper === 'SP500' || upper === 'S&P500' || upper === 'SPX' || upper === 'SPY') {
+    if (WHY_IT_MOVES_DATA[upper]) return WHY_IT_MOVES_DATA[upper];
+    return WHY_IT_MOVES_DATA['VOO'];
+  }
   if (WHY_IT_MOVES_DATA[upper]) {
     return WHY_IT_MOVES_DATA[upper];
   }
 
   return {
     ticker: upper,
-    name: `Activo ${upper}`,
-    price: 'En consulta',
+    name: upper === 'GOLD' || upper === 'XAU' || upper === 'ORO' ? 'Oro al Contado (XAU/USD)' : `Activo ${upper}`,
+    price: upper === 'GOLD' || upper === 'XAU' || upper === 'ORO' ? '$2,654.80' : 'En consulta',
     change: '+0.40%',
     isPositive: true,
-    tradingViewSymbol: upper.includes(':') ? upper : `BME:${upper}`,
-    exchange: 'Bolsa de Valores',
+    tradingViewSymbol: resolveTradingViewSymbol(upper, upper.includes(':') ? upper : undefined),
+    exchange: upper === 'GOLD' || upper === 'XAU' || upper === 'ORO' ? 'Metales Preciosos' : 'Bolsa de Valores',
     rootCause: `Auditoría contable para ${upper}: El activo se mueve principalmente por expectativas de beneficios trimestrales y la sensibilidad a la curva de tipos de su sector.`,
     classification: 'SEÑAL_FUNDAMENTAL',
     noiseExplanation: 'El 80% de la oscilación intradía refleja arbitraje de fondos algorítmicos. No se observan alertas de insolvencia ni diluciones no comunicadas.',

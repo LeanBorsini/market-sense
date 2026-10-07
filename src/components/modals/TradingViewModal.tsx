@@ -13,6 +13,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { X, ExternalLink, HelpCircle, Activity, ChevronDown, ChevronUp, Layers, Check } from 'lucide-react';
+import { resolveTradingViewSymbol } from '../../lib/symbolResolver';
 
 declare global {
   interface Window {
@@ -50,8 +51,8 @@ export const TradingViewModal: React.FC<TradingViewModalProps> = ({
   const [showCheatSheet, setShowCheatSheet] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
 
-  // Normalize trading view symbol (e.g. "BME:OHLA", "NASDAQ:NVDA", "AMEX:VOO")
-  const formattedSymbol = tradingViewSymbol || (ticker === 'OHLA' ? 'BME:OHLA' : `NASDAQ:${ticker}`);
+  // Normalize trading view symbol (e.g. "OANDA:XAUUSD" for GOLD, "BME:OHLA", "AMEX:VOO")
+  const formattedSymbol = resolveTradingViewSymbol(ticker, tradingViewSymbol);
 
   // Load TradingView script once
   useEffect(() => {

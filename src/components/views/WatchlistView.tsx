@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { WHY_IT_MOVES_DATA, MovementCause, HorizonOutlook } from '../../data/marketSignals';
 import { auditTickerFundamentals } from '../../data/marketSignals';
+import { resolveTradingViewSymbol } from '../../lib/symbolResolver';
 import { TickerAIConsultant } from '../TickerAIConsultant';
 import { LiveQuote } from '../../types/market';
 
@@ -299,7 +300,7 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({
                             onOpenChart({
                               ticker: cause.ticker,
                               name: cause.name,
-                              tradingViewSymbol: cause.tradingViewSymbol,
+                              tradingViewSymbol: resolveTradingViewSymbol(cause.ticker, cause.tradingViewSymbol),
                               price: activePrice,
                               change: liveQuote.change,
                               trafficLight: cause.trafficLight,
@@ -315,7 +316,7 @@ export const WatchlistView: React.FC<WatchlistViewProps> = ({
 
                       {/* TradingView Direct Link */}
                       <a
-                        href={`https://es.tradingview.com/chart/?symbol=${encodeURIComponent(cause.tradingViewSymbol)}`}
+                        href={`https://es.tradingview.com/chart/?symbol=${encodeURIComponent(resolveTradingViewSymbol(cause.ticker, cause.tradingViewSymbol))}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-semibold transition flex items-center gap-1"

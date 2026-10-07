@@ -15,7 +15,8 @@ import {
   BarChart2, 
   HelpCircle, 
   Sparkles, 
-  Globe 
+  Globe,
+  FlaskConical
 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { ActiveSection } from '../types/market';
@@ -186,6 +187,19 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Globe className="w-4 h-4 text-blue-600" />
               <span>Eventos & Macro</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection('lab')}
+              className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                activeSection === 'lab'
+                  ? 'bg-white text-emerald-800 font-bold border border-[#DDD8CD] shadow-xs'
+                  : 'text-slate-600 hover:text-[#191C21]'
+              }`}
+            >
+              <FlaskConical className="w-4 h-4 text-teal-700" />
+              <span>Laboratorio & Simulación</span>
             </button>
           </nav>
         </div>

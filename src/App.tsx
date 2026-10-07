@@ -34,6 +34,7 @@ import { WatchlistView } from './components/views/WatchlistView';
 import { MacroImpactView } from './components/views/MacroImpactView';
 import { RadarOpportunitiesView } from './components/views/RadarOpportunitiesView';
 import { CalendarView } from './components/views/CalendarView';
+import { LabView } from './components/views/LabView';
 import { AuditModal } from './components/modals/AuditModal';
 import { TradingViewModal } from './components/modals/TradingViewModal';
 import { ActiveSection, LiveQuote, LiveQuotesMap, RadarGemFilter } from './types/market';
@@ -500,6 +501,10 @@ export default function App() {
             events={CRITICAL_EVENTS_CALENDAR}
             trackedTickers={trackedTickers}
           />
+        )}
+
+        {activeSection === 'lab' && (
+          <LabView onOpenChart={setSelectedChartAsset} />
         )}
       </main>
 

@@ -4,6 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { initCloudBotRoutes } from './server-cloud-bot';
 
 dotenv.config();
 
@@ -11,6 +12,9 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
+
+// Initialize 24/7 Cloud Autonomous Trading Bot Engine
+initCloudBotRoutes(app);
 
 // Initialize Gemini Client with User-Agent as required by AI Studio guidelines
 const ai = new GoogleGenAI({

@@ -30,6 +30,14 @@ service cloud.firestore {
                     && isValidId(userId)
                     && request.resource.data.userId == resource.data.userId;
       allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Private cloud trading journal, orders, and learning state
+      match /cloud_trades/{tradeId} {
+        allow read, write: if isOwner(userId) && isValidId(tradeId);
+      }
+      match /bot_settings/{settingId} {
+        allow read, write: if isOwner(userId) && isValidId(settingId);
+      }
     }
   }
 }

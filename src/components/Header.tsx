@@ -19,7 +19,8 @@ import {
   FlaskConical,
   HardDrive,
   Shield,
-  Lock
+  Lock,
+  Cloud
 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { ActiveSection } from '../types/market';
@@ -86,14 +87,18 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => setActiveSection(activeSection === 'fedora_bot' ? 'watchlist' : 'fedora_bot')}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer ${
                   activeSection === 'fedora_bot'
-                    ? 'bg-amber-900 text-amber-100 border-amber-700 shadow-sm'
+                    ? 'bg-slate-900 text-amber-200 border-amber-600 shadow-sm'
                     : 'bg-[#F2ECE1] hover:bg-[#EAE3D6] text-slate-700 border-[#DDD8CD]'
                 }`}
-                title="Consola Privada del Bot (Aislada de usuarios de fundamentales)"
+                title="Consola Privada del Bot en la Nube 24/7 (Aislada de usuarios de fundamentales)"
               >
-                <Lock className={`w-3.5 h-3.5 ${activeSection === 'fedora_bot' ? 'text-amber-300' : 'text-slate-500'}`} />
+                {activeSection === 'fedora_bot' ? (
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                ) : (
+                  <Cloud className="w-3.5 h-3.5 text-amber-600" />
+                )}
                 <span className="hidden sm:inline text-[11px]">
-                  {activeSection === 'fedora_bot' ? 'Cerrar Desk Privado' : 'Desk Privado'}
+                  {activeSection === 'fedora_bot' ? 'Cerrar Desk Privado' : 'Desk Privado (Nube)'}
                 </span>
               </button>
 

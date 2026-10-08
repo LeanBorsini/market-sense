@@ -38,9 +38,25 @@ import {
   Skull,
   Gauge,
   ZapOff,
-  LockKeyhole
+  LockKeyhole,
+  Building2,
+  Wallet,
+  Plus,
+  Trash2,
+  Copy,
+  Edit3,
+  Filter,
+  ArrowUpRight,
+  PieChart
 } from 'lucide-react';
-import { DetailedTrade, CloudBotState, EvolutionaryAdjustment, SizingCalculationResult } from '../../types/cloudBot';
+import { 
+  DetailedTrade, 
+  CloudBotState, 
+  EvolutionaryAdjustment, 
+  SizingCalculationResult,
+  TradingAccount,
+  AccountType
+} from '../../types/cloudBot';
 
 export const CloudTradingDeskView: React.FC = () => {
   // ─── 1. CORE CLOUD BOT STATE ───
@@ -51,8 +67,8 @@ export const CloudTradingDeskView: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // ─── 2. ACTIVE WORKSPACE TAB ───
-  // 'equity_sentinel' | 'journal' | 'evolution' | 'calculator' | 'active_orders' | 'broker_prop'
-  const [activeTab, setActiveTab] = useState<'equity_sentinel' | 'journal' | 'evolution' | 'calculator' | 'active_orders' | 'broker_prop'>('equity_sentinel');
+  // 'equity_sentinel' | 'accounts_hub' | 'journal' | 'evolution' | 'calculator' | 'active_orders' | 'broker_prop'
+  const [activeTab, setActiveTab] = useState<'equity_sentinel' | 'accounts_hub' | 'journal' | 'evolution' | 'calculator' | 'active_orders' | 'broker_prop'>('equity_sentinel');
 
   // ─── 2.1 SENTINEL & CIRCUIT BREAKER CONTROLS ───
   const [isStressTesting, setIsStressTesting] = useState<boolean>(false);
@@ -61,6 +77,34 @@ export const CloudTradingDeskView: React.FC = () => {
   const [customBreakerLimit, setCustomBreakerLimit] = useState<number>(3.2);
   const [customCalcMode, setCustomCalcMode] = useState<'BALANCE_BASED' | 'TRAILING_EQUITY'>('BALANCE_BASED');
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
+
+  // ─── 2.2 MULTI-ACCOUNT & MULTI-BROKER MANAGEMENT STATE ───
+  const [accountFilter, setAccountFilter] = useState<'ALL' | 'PROP_FIRM_EVAL' | 'PROP_FIRM_FUNDED' | 'BROKER_REAL' | 'BROKER_DEMO'>('ALL');
+  const [isSwitchingAccount, setIsSwitchingAccount] = useState<boolean>(false);
+  const [showNewAccountModal, setShowNewAccountModal] = useState<boolean>(false);
+  const [showEditAccountModal, setShowEditAccountModal] = useState<boolean>(false);
+  const [editingAccount, setEditingAccount] = useState<TradingAccount | null>(null);
+
+  // New Account Form
+  const [newAccName, setNewAccName] = useState<string>('FTMO Challenge $100k');
+  const [newAccBroker, setNewAccBroker] = useState<string>('FTMO');
+  const [newAccType, setNewAccType] = useState<AccountType>('PROP_FIRM_EVAL');
+  const [newAccNumber, setNewAccNumber] = useState<string>('');
+  const [newAccServer, setNewAccServer] = useState<string>('FTMO-Live2');
+  const [newAccCurrency, setNewAccCurrency] = useState<'EUR' | 'USD' | 'GBP'>('USD');
+  const [newAccInitialCap, setNewAccInitialCap] = useState<number>(100000);
+  const [newAccDailyLimit, setNewAccDailyLimit] = useState<number>(5.0);
+  const [newAccBreaker, setNewAccBreaker] = useState<number>(4.0);
+  const [newAccCalcMode, setNewAccCalcMode] = useState<'BALANCE_BASED' | 'TRAILING_EQUITY'>('BALANCE_BASED');
+  const [newAccTotalDrawdown, setNewAccTotalDrawdown] = useState<number>(10.0);
+  const [newAccMaxRisk, setNewAccMaxRisk] = useState<number>(1.0);
+  const [isCreatingAccount, setIsCreatingAccount] = useState<boolean>(false);
+
+  // Multi-Execution / Copy Trading state
+  const [multiExecSymbol, setMultiExecSymbol] = useState<string>('S&P 500 (VOO/ES)');
+  const [multiExecDirection, setMultiExecDirection] = useState<'BUY' | 'SELL'>('BUY');
+  const [multiExecRiskPct, setMultiExecRiskPct] = useState<number>(1.0);
+  const [isDispatchingMulti, setIsDispatchingMulti] = useState<boolean>(false);
 
   // ─── 3. JOURNAL FILTERS & EXPANSION ───
   const [journalFilter, setJournalFilter] = useState<'ALL' | 'WIN' | 'LOSS' | 'WICK_HUNT'>('ALL');
@@ -288,6 +332,226 @@ export const CloudTradingDeskView: React.FC = () => {
     }
   };
 
+  // ─── MULTI-ACCOUNT MANAGEMENT HANDLERS ───
+  const handleSwitchAccount = async (accountId: string) => {
+    setIsSwitchingAccount(true);
+    try {
+      const res = await fetch('/api/cloud-bot/accounts/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setBotState(json.state);
+        setStatusMessage(json.message);
+        setTimeout(() => setStatusMessage(null), 4000);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSwitchingAccount(false);
+    }
+  };
+
+  const handleToggleAccountActive = async (accountId: string) => {
+    try {
+      const res = await fetch(`/api/cloud-bot/accounts/${accountId}/toggle`, { method: 'POST' });
+      if (res.ok) {
+        const json = await res.json();
+        if (botState) {
+          setBotState({ ...botState, accounts: json.accounts });
+        }
+        setStatusMessage(json.message);
+        setTimeout(() => setStatusMessage(null), 3000);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteAccount = async (accountId: string) => {
+    if (!window.confirm('¿Seguro que deseas desvincular esta cuenta del Centro de Mando?')) return;
+    try {
+      const res = await fetch(`/api/cloud-bot/accounts/${accountId}/delete`, { method: 'POST' });
+      if (res.ok) {
+        const json = await res.json();
+        if (botState) {
+          setBotState({
+            ...botState,
+            accounts: json.accounts,
+            activeAccountId: json.activeAccountId
+          });
+        }
+        setStatusMessage(json.message);
+        setTimeout(() => setStatusMessage(null), 3000);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const applyAccountPreset = (preset: 'FTMO_100K' | 'FUNDEDNEXT_50K' | 'TOPSTEP_50K' | 'IC_MARKETS_DEMO' | 'IBKR_REAL') => {
+    switch (preset) {
+      case 'FTMO_100K':
+        setNewAccName('FTMO Reto Evaluación $100k');
+        setNewAccBroker('FTMO');
+        setNewAccType('PROP_FIRM_EVAL');
+        setNewAccCurrency('USD');
+        setNewAccInitialCap(100000);
+        setNewAccDailyLimit(5.0);
+        setNewAccBreaker(4.0);
+        setNewAccCalcMode('BALANCE_BASED');
+        setNewAccTotalDrawdown(10.0);
+        setNewAccMaxRisk(1.0);
+        setNewAccServer('FTMO-Live2');
+        break;
+      case 'FUNDEDNEXT_50K':
+        setNewAccName('FundedNext Financiada €50k (Real)');
+        setNewAccBroker('FundedNext');
+        setNewAccType('PROP_FIRM_FUNDED');
+        setNewAccCurrency('EUR');
+        setNewAccInitialCap(50000);
+        setNewAccDailyLimit(4.0);
+        setNewAccBreaker(3.2);
+        setNewAccCalcMode('BALANCE_BASED');
+        setNewAccTotalDrawdown(8.0);
+        setNewAccMaxRisk(0.75);
+        setNewAccServer('FundedNext-Live01');
+        break;
+      case 'TOPSTEP_50K':
+        setNewAccName('Topstep / Apex Futuros $50k');
+        setNewAccBroker('Topstep');
+        setNewAccType('PROP_FIRM_EVAL');
+        setNewAccCurrency('USD');
+        setNewAccInitialCap(50000);
+        setNewAccDailyLimit(3.5);
+        setNewAccBreaker(2.8);
+        setNewAccCalcMode('TRAILING_EQUITY');
+        setNewAccTotalDrawdown(5.0);
+        setNewAccMaxRisk(0.5);
+        setNewAccServer('Rithmic-Live01');
+        break;
+      case 'IC_MARKETS_DEMO':
+        setNewAccName('IC Markets Demo Scalp €10k');
+        setNewAccBroker('IC Markets');
+        setNewAccType('BROKER_DEMO');
+        setNewAccCurrency('EUR');
+        setNewAccInitialCap(10000);
+        setNewAccDailyLimit(5.0);
+        setNewAccBreaker(3.5);
+        setNewAccCalcMode('BALANCE_BASED');
+        setNewAccTotalDrawdown(10.0);
+        setNewAccMaxRisk(1.0);
+        setNewAccServer('ICMarketsSC-Demo02');
+        break;
+      case 'IBKR_REAL':
+        setNewAccName('Interactive Brokers Real €25k');
+        setNewAccBroker('Interactive Brokers');
+        setNewAccType('BROKER_REAL');
+        setNewAccCurrency('EUR');
+        setNewAccInitialCap(25000);
+        setNewAccDailyLimit(3.0);
+        setNewAccBreaker(2.5);
+        setNewAccCalcMode('BALANCE_BASED');
+        setNewAccTotalDrawdown(6.0);
+        setNewAccMaxRisk(0.5);
+        setNewAccServer('IBKR-Gateway');
+        break;
+    }
+  };
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAccName.trim()) return;
+    setIsCreatingAccount(true);
+    try {
+      const res = await fetch('/api/cloud-bot/accounts/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newAccName.trim(),
+          broker: newAccBroker,
+          accountType: newAccType,
+          accountNumber: newAccNumber.trim() || undefined,
+          server: newAccServer.trim() || undefined,
+          currency: newAccCurrency,
+          initialCapital: newAccInitialCap,
+          dailyDrawdownLimitPct: newAccDailyLimit,
+          circuitBreakerThresholdPct: newAccBreaker,
+          calculationMode: newAccCalcMode,
+          totalDrawdownLimitPct: newAccTotalDrawdown,
+          maxRiskPerTradePct: newAccMaxRisk
+        })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (botState) {
+          setBotState({ ...botState, accounts: json.accounts });
+        }
+        setShowNewAccountModal(false);
+        setStatusMessage(json.message);
+        setTimeout(() => setStatusMessage(null), 4000);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
+
+  const handleUpdateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAccount) return;
+    try {
+      const res = await fetch(`/api/cloud-bot/accounts/${editingAccount.id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingAccount)
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (botState) {
+          setBotState({ ...botState, accounts: json.accounts });
+        }
+        setShowEditAccountModal(false);
+        setEditingAccount(null);
+        setStatusMessage(json.message);
+        setTimeout(() => setStatusMessage(null), 3000);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDispatchMultiAccountTrade = async () => {
+    setIsDispatchingMulti(true);
+    try {
+      const res = await fetch('/api/cloud-bot/accounts/multi-execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: multiExecSymbol,
+          direction: multiExecDirection,
+          riskPercent: multiExecRiskPct
+        })
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        await fetchBotState();
+        setStatusMessage(`🚀 EJECUCIÓN MULTI-BROKER EXITOSA: ${json.message}`);
+        setTimeout(() => setStatusMessage(null), 6000);
+      } else {
+        setStatusMessage(`❌ Error: ${json.error || 'No se pudo despachar la orden multi-cuenta'}`);
+        setTimeout(() => setStatusMessage(null), 5000);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDispatchingMulti(false);
+    }
+  };
+
   // Filtered closed trades
   const filteredTrades = useMemo(() => {
     if (!botState) return [];
@@ -334,6 +598,23 @@ export const CloudTradingDeskView: React.FC = () => {
   const distanceToCircuitBreaker = Math.max(0, Number((circuitBreakerThreshold - currentFloatingDrawdownPct).toFixed(2)));
   const distanceToFatalBreach = Math.max(0, Number((dailyDrawdownLimit - currentFloatingDrawdownPct).toFixed(2)));
 
+  // Multi-Account Portfolio Data
+  const accounts = botState?.accounts || [];
+  const currentActiveId = botState?.activeAccountId || accounts[0]?.id;
+  const activeAccount = accounts.find(a => a.id === currentActiveId) || accounts[0];
+
+  const totalPortfolioBalance = useMemo(() => {
+    return accounts.reduce((sum, a) => sum + (a.currency === 'USD' ? a.balance * 0.93 : a.balance), 0);
+  }, [accounts]);
+
+  const totalPortfolioEquity = useMemo(() => {
+    return accounts.reduce((sum, a) => sum + (a.currency === 'USD' ? a.currentEquity * 0.93 : a.currentEquity), 0);
+  }, [accounts]);
+
+  const totalPortfolioNetPnl = useMemo(() => {
+    return accounts.reduce((sum, a) => sum + (a.currency === 'USD' ? a.netPnlEur * 0.93 : a.netPnlEur), 0);
+  }, [accounts]);
+
   return (
     <div className="space-y-6">
       {/* ─── 1. TOP CLOUD STATUS & OPERATOR BANNER ─── */}
@@ -359,7 +640,7 @@ export const CloudTradingDeskView: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                Operativa desasistida en la nube con motor evolutivo anti-caza y Guardián de Floating Equity para cuentas de fondeo.
+                Operativa desasistida con motor multi-cuenta, anti-caza y Guardián de Floating Equity para empresas de fondeo y brokers.
               </p>
             </div>
           </div>
@@ -386,6 +667,85 @@ export const CloudTradingDeskView: React.FC = () => {
               title="Refrescar estado en vivo"
             >
               <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* ─── MULTI-ACCOUNT QUICK SWITCHER BAR ─── */}
+        <div className="pt-3 pb-1 border-t border-slate-700/60 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-thin">
+            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+              <Building2 className="w-3.5 h-3.5 text-amber-400" />
+              <span>Cuenta Activa:</span>
+            </span>
+            {accounts.map(acc => {
+              const isSelected = acc.id === currentActiveId;
+              return (
+                <button
+                  key={acc.id}
+                  type="button"
+                  onClick={() => handleSwitchAccount(acc.id)}
+                  disabled={isSwitchingAccount}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition shrink-0 cursor-pointer ${
+                    isSelected
+                      ? 'bg-amber-500 text-slate-950 font-bold shadow-md ring-2 ring-amber-300'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                  }`}
+                  title={`${acc.name} (${acc.server}) - Saldo: ${acc.balance} ${acc.currency}`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${acc.isActive ? 'bg-emerald-400 ring-2 ring-emerald-400/30' : 'bg-slate-500'}`} />
+                  <span className="font-bold">{acc.broker}</span>
+                  <span className="font-mono text-[11px] opacity-90">
+                    {acc.currency === 'USD' ? '$' : '€'}{(acc.balance).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                  </span>
+                  {acc.accountType === 'PROP_FIRM_EVAL' && (
+                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${isSelected ? 'bg-slate-900 text-amber-200' : 'bg-slate-900 text-amber-300'}`}>
+                      Reto
+                    </span>
+                  )}
+                  {acc.accountType === 'PROP_FIRM_FUNDED' && (
+                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${isSelected ? 'bg-emerald-950 text-emerald-200' : 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'}`}>
+                      Fondeada
+                    </span>
+                  )}
+                  {acc.accountType === 'BROKER_REAL' && (
+                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${isSelected ? 'bg-blue-950 text-blue-200' : 'bg-blue-950 text-blue-300'}`}>
+                      Real
+                    </span>
+                  )}
+                  {acc.accountType === 'BROKER_DEMO' && (
+                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${isSelected ? 'bg-purple-950 text-purple-200' : 'bg-purple-950 text-purple-300'}`}>
+                      Demo
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => {
+                applyAccountPreset('FTMO_100K');
+                setShowNewAccountModal(true);
+              }}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-amber-300 border border-dashed border-amber-500/60 flex items-center gap-1.5 shrink-0 cursor-pointer transition shadow-2xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Añadir Cuenta</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
+            <button
+              type="button"
+              onClick={() => setActiveTab('accounts_hub')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                activeTab === 'accounts_hub'
+                  ? 'bg-white text-slate-900'
+                  : 'bg-amber-600/30 hover:bg-amber-600/40 text-amber-200 border border-amber-500/40'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-amber-400" />
+              <span>Gestor Multi-Cuentas ({accounts.length})</span>
             </button>
           </div>
         </div>
@@ -513,6 +873,24 @@ export const CloudTradingDeskView: React.FC = () => {
               : 'bg-emerald-950 text-emerald-300'
           }`}>
             {circuitBreakerTripped ? 'BLOQUEO ACTIVO' : 'ESCUDO ACTIVO'}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('accounts_hub')}
+          className={`px-3.5 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'accounts_hub'
+              ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+          }`}
+        >
+          <Building2 className={`w-4 h-4 ${activeTab === 'accounts_hub' ? 'text-white' : 'text-amber-500'}`} />
+          <span>Multi-Cuentas & Brokers</span>
+          <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
+            activeTab === 'accounts_hub' ? 'bg-amber-800 text-amber-100' : 'bg-slate-100 text-slate-700'
+          }`}>
+            {accounts.length}
           </span>
         </button>
 
@@ -833,6 +1211,565 @@ export const CloudTradingDeskView: React.FC = () => {
                   <span>{isSavingSettings ? 'Guardando...' : 'Aplicar Ajustes al Servidor'}</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB: GESTOR MULTI-CUENTAS & BROKERS (PORTFOLIO HUB) ─── */}
+      {activeTab === 'accounts_hub' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Header & Quick Action Banner */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-base sm:text-lg text-slate-900 tracking-tight">
+                      Gestor Multi-Cuentas & Multi-Broker
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Supervisa, mide y opera en simultáneo múltiples cuentas de retos de fondeo, firmas financiadas, brokers con capital propio y demos de pruebas.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    applyAccountPreset('FTMO_100K');
+                    setShowNewAccountModal(true);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Vincular Nueva Cuenta</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Consolidado Global de Cartera (Portfolio Aggregator) */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="p-3.5 rounded-xl bg-slate-900 text-white border border-slate-800">
+                <div className="flex items-center justify-between text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                  <span>Capital Total Gestionado</span>
+                  <Wallet className="w-3.5 h-3.5 text-amber-400" />
+                </div>
+                <div className="text-base sm:text-lg font-bold font-mono text-white mt-1">
+                  €{totalPortfolioBalance.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </div>
+                <span className="text-[10px] text-slate-400">
+                  {accounts.length} cuentas combinadas
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-emerald-950/40 text-emerald-100 border border-emerald-800/60">
+                <div className="flex items-center justify-between text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                  <span>Equity Flotante Consolidado</span>
+                  <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                </div>
+                <div className="text-base sm:text-lg font-bold font-mono text-white mt-1">
+                  €{totalPortfolioEquity.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </div>
+                <span className="text-[10px] text-emerald-400 font-semibold">
+                  +€{(totalPortfolioEquity - totalPortfolioBalance).toFixed(2)} flotante en vivo
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center justify-between text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                  <span>PnL Neto Acumulado</span>
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                </div>
+                <div className="text-base sm:text-lg font-bold font-mono text-emerald-700 mt-1">
+                  +€{totalPortfolioNetPnl.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <span className="text-[10px] text-emerald-600 font-semibold">
+                  Rentabilidad positiva global
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center justify-between text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                  <span>Tasa Supervivencia Fondeo</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                </div>
+                <div className="text-base sm:text-lg font-bold font-mono text-blue-700 mt-1">
+                  100% Vivas
+                </div>
+                <span className="text-[10px] text-slate-500">
+                  0 cuentas suspendidas por reglas
+                </span>
+              </div>
+
+              <div className="col-span-2 md:col-span-1 p-3.5 rounded-xl bg-amber-50 border border-amber-200">
+                <div className="flex items-center justify-between text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+                  <span>Cuentas en Trading</span>
+                  <Cpu className="w-3.5 h-3.5 text-amber-600" />
+                </div>
+                <div className="text-base sm:text-lg font-bold font-mono text-amber-900 mt-1">
+                  {accounts.filter(a => a.isActive).length} / {accounts.length} Activas
+                </div>
+                <span className="text-[10px] text-amber-700 font-semibold">
+                  Autónomas en la nube 24/7
+                </span>
+              </div>
+            </div>
+
+            {/* Account Filters */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-2 border-t border-slate-100 text-xs font-semibold">
+              <span className="text-slate-400 text-[11px] flex items-center gap-1 mr-1">
+                <Filter className="w-3.5 h-3.5" />
+                Filtrar:
+              </span>
+              <button
+                type="button"
+                onClick={() => setAccountFilter('ALL')}
+                className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                  accountFilter === 'ALL'
+                    ? 'bg-slate-900 text-white shadow-2xs font-bold'
+                    : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Todas ({accounts.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountFilter('PROP_FIRM_EVAL')}
+                className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 ${
+                  accountFilter === 'PROP_FIRM_EVAL'
+                    ? 'bg-amber-600 text-white shadow-2xs font-bold'
+                    : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                }`}
+              >
+                <span>Retos Evaluación</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20">
+                  {accounts.filter(a => a.accountType === 'PROP_FIRM_EVAL').length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountFilter('PROP_FIRM_FUNDED')}
+                className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 ${
+                  accountFilter === 'PROP_FIRM_FUNDED'
+                    ? 'bg-emerald-700 text-white shadow-2xs font-bold'
+                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                }`}
+              >
+                <span>Fondeadas Reales</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20">
+                  {accounts.filter(a => a.accountType === 'PROP_FIRM_FUNDED').length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountFilter('BROKER_REAL')}
+                className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 ${
+                  accountFilter === 'BROKER_REAL'
+                    ? 'bg-blue-700 text-white shadow-2xs font-bold'
+                    : 'bg-blue-50 text-blue-800 hover:bg-blue-100'
+                }`}
+              >
+                <span>Brokers Reales</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20">
+                  {accounts.filter(a => a.accountType === 'BROKER_REAL').length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountFilter('BROKER_DEMO')}
+                className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 ${
+                  accountFilter === 'BROKER_DEMO'
+                    ? 'bg-purple-700 text-white shadow-2xs font-bold'
+                    : 'bg-purple-50 text-purple-800 hover:bg-purple-100'
+                }`}
+              >
+                <span>Demos de Pruebas</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20">
+                  {accounts.filter(a => a.accountType === 'BROKER_DEMO').length}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Cards Grid of Accounts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {accounts
+              .filter(acc => accountFilter === 'ALL' || acc.accountType === accountFilter)
+              .map(acc => {
+                const isSelected = acc.id === currentActiveId;
+                const benchmark = acc.calculationMode === 'TRAILING_EQUITY' ? acc.peakEquityToday : acc.initialCapital;
+                const lossEur = benchmark - acc.currentEquity;
+                const ddPct = lossEur > 0 ? Number(((lossEur / benchmark) * 100).toFixed(2)) : 0;
+                const bufferToBreaker = Math.max(0, Number((acc.circuitBreakerThresholdPct - ddPct).toFixed(2)));
+
+                return (
+                  <div
+                    key={acc.id}
+                    className={`bg-white rounded-2xl border transition shadow-2xs flex flex-col justify-between overflow-hidden ${
+                      isSelected
+                        ? 'border-amber-400 ring-2 ring-amber-400/30'
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {/* Account Card Header */}
+                    <div className="p-4 border-b border-slate-100 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm text-white shadow-xs ${
+                            acc.broker === 'FTMO' ? 'bg-gradient-to-br from-blue-600 to-indigo-800' :
+                            acc.broker === 'FundedNext' ? 'bg-gradient-to-br from-purple-600 to-pink-700' :
+                            acc.broker === 'Topstep' ? 'bg-gradient-to-br from-amber-600 to-orange-700' :
+                            acc.broker === 'IC Markets' ? 'bg-gradient-to-br from-emerald-600 to-teal-800' :
+                            'bg-gradient-to-br from-slate-700 to-slate-900'
+                          }`}>
+                            {acc.broker.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-sm text-slate-900">{acc.name}</span>
+                              {isSelected && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                                  <span>★ PRINCIPAL ACTIVA</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5">
+                              <span>#{acc.accountNumber}</span>
+                              <span>·</span>
+                              <span>{acc.server}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status pill & toggle */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAccountActive(acc.id)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                              acc.isActive
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
+                            }`}
+                            title={acc.isActive ? 'Pausar trading en esta cuenta' : 'Reanudar trading en esta cuenta'}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${acc.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                            <span>{acc.isActive ? 'OPERANDO' : 'PAUSADA'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Tags & Account Type */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          acc.accountType === 'PROP_FIRM_EVAL' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                          acc.accountType === 'PROP_FIRM_FUNDED' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                          acc.accountType === 'BROKER_REAL' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                          'bg-purple-100 text-purple-800 border border-purple-200'
+                        }`}>
+                          {acc.accountType === 'PROP_FIRM_EVAL' ? 'Reto de Evaluación' :
+                           acc.accountType === 'PROP_FIRM_FUNDED' ? 'Fondeada Real (Profit Split)' :
+                           acc.accountType === 'BROKER_REAL' ? 'Broker Capital Propio' :
+                           'Demo de Laboratorio'}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-600 border border-slate-200">
+                          {acc.calculationMode === 'TRAILING_EQUITY' ? 'Trailing Stop Intradía' : 'Balance-Based'}
+                        </span>
+                        {acc.tags.map((tag, idx) => (
+                          <span key={idx} className="px-1.5 py-0.5 rounded text-[10px] bg-slate-50 text-slate-500 border border-slate-200">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* 🛡️ Real-Time Floating Drawdown Gauge for this Account */}
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-700 flex items-center gap-1">
+                            <Shield className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Drawdown Flotante Actual:</span>
+                            <span className="font-mono text-slate-900 font-bold">{ddPct > 0 ? `-${ddPct}%` : '0.0%'}</span>
+                          </span>
+                          <span className="text-[11px] text-slate-500 font-mono">
+                            Breaker: {acc.circuitBreakerThresholdPct}% · Límite Fatal: {acc.dailyDrawdownLimitPct}%
+                          </span>
+                        </div>
+
+                        {/* Visual Progress Bar */}
+                        <div className="w-full bg-slate-200 rounded-full h-2 relative overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-500 ${
+                              ddPct >= acc.circuitBreakerThresholdPct ? 'bg-rose-600' :
+                              ddPct >= acc.warningThresholdPct ? 'bg-amber-500' :
+                              'bg-emerald-500'
+                            }`}
+                            style={{ width: `${Math.min(100, (ddPct / acc.dailyDrawdownLimitPct) * 100)}%` }}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium">
+                          <span className="text-emerald-700 font-bold">
+                            ✓ Margen de Supervivencia: {bufferToBreaker}% antes del freno preventivo
+                          </span>
+                          <span className="text-slate-400 font-mono">
+                            {acc.calculationMode === 'TRAILING_EQUITY' ? 'Pico Hoy: ' + acc.currency + ' ' + acc.peakEquityToday : 'Cap. Base: ' + acc.currency + ' ' + acc.initialCapital}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Account Financials & Performance Grid */}
+                    <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Saldo Cerrado</span>
+                        <span className="font-mono font-bold text-slate-900 text-sm">
+                          {acc.currency === 'USD' ? '$' : '€'}{acc.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">
+                          Base: {acc.currency === 'USD' ? '$' : '€'}{acc.initialCapital.toLocaleString('es-ES')}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100">
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase block">Equity Flotante</span>
+                        <span className="font-mono font-bold text-emerald-800 text-sm flex items-center gap-1">
+                          <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
+                          {acc.currency === 'USD' ? '$' : '€'}{acc.currentEquity.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className={`text-[10px] font-semibold ${acc.floatingPnlEur >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {acc.floatingPnlEur >= 0 ? '+' : ''}{acc.floatingPnlEur.toFixed(2)} {acc.currency}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">PnL Diario / Neto</span>
+                        <span className={`font-mono font-bold text-sm ${acc.dailyPnlEur >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {acc.dailyPnlEur >= 0 ? '+' : ''}{acc.currency === 'USD' ? '$' : '€'}{acc.dailyPnlEur.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">
+                          Neto: +{acc.currency === 'USD' ? '$' : '€'}{acc.netPnlEur.toFixed(0)}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Calidad Broker</span>
+                        <span className="font-mono font-bold text-slate-800 text-sm">
+                          {acc.avgSlippagePips} pips
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">
+                          Win Rate: {acc.winRatePct}% ({acc.totalTrades}t)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Account Actions Footer */}
+                    <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {!isSelected ? (
+                          <button
+                            type="button"
+                            onClick={() => handleSwitchAccount(acc.id)}
+                            disabled={isSwitchingAccount}
+                            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                          >
+                            <span>Seleccionar como Principal</span>
+                          </button>
+                        ) : (
+                          <span className="text-xs font-bold text-amber-700 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Monitoreando en Pantalla</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingAccount(acc);
+                            setShowEditAccountModal(true);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition cursor-pointer"
+                          title="Editar reglas y límites de esta cuenta"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        {accounts.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAccount(acc.id)}
+                            className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+                            title="Desvincular cuenta"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
+          {/* ─── DESPACHO SINCRONIZADO MULTI-BROKER (COPY-TRADING INSTITUCIONAL) ─── */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950 text-white p-5 rounded-2xl border border-slate-700 shadow-md space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/60 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                    <Copy className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-white">
+                      Despachador Sincronizado Multi-Broker (Copy-Trading Institucional)
+                    </h3>
+                    <p className="text-xs text-slate-300">
+                      Envía una orden al instante calculando el lotaje matemático de forma proporcional en cada cuenta según su capital individual.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">Activo Financiero:</label>
+                <select
+                  value={multiExecSymbol}
+                  onChange={(e) => setMultiExecSymbol(e.target.value)}
+                  className="w-full bg-slate-800 text-white text-xs font-semibold rounded-xl border border-slate-700 p-2.5 focus:ring-1 focus:ring-amber-500 outline-hidden"
+                >
+                  <option value="S&P 500 (VOO/ES)">S&P 500 (VOO/ES)</option>
+                  <option value="XAUUSD (Oro)">XAUUSD (Oro)</option>
+                  <option value="EURUSD">EURUSD</option>
+                  <option value="NASDAQ (QQQ)">NASDAQ (QQQ)</option>
+                  <option value="BTCUSD">BTCUSD</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">Dirección de Entrada:</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMultiExecDirection('BUY')}
+                    className={`p-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      multiExecDirection === 'BUY'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                    }`}
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    <span>COMPRA (BUY)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMultiExecDirection('SELL')}
+                    className={`p-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      multiExecDirection === 'SELL'
+                        ? 'bg-rose-600 text-white shadow-sm'
+                        : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                    }`}
+                  >
+                    <TrendingDown className="w-4 h-4" />
+                    <span>VENTA (SELL)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">Riesgo Idéntico por Cuenta (%):</label>
+                <div className="flex items-center gap-2">
+                  {[0.5, 0.75, 1.0, 1.5].map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => setMultiExecRiskPct(pct)}
+                      className={`flex-1 p-2 rounded-xl text-xs font-bold font-mono transition cursor-pointer ${
+                        multiExecRiskPct === pct
+                          ? 'bg-amber-500 text-slate-950 font-bold'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+                      }`}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Live Distribution Preview Table */}
+            <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-700 space-y-2">
+              <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
+                ⚡ Vista Previa del Despacho Proporcional ({accounts.filter(a => a.isActive).length} cuentas activas)
+              </span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400 text-[10px]">
+                      <th className="pb-1.5">CUENTA / BROKER</th>
+                      <th className="pb-1.5">TIPO</th>
+                      <th className="pb-1.5">CAPITAL</th>
+                      <th className="pb-1.5">RIESGO ({multiExecRiskPct}%)</th>
+                      <th className="pb-1.5">LOTES CALCULADOS</th>
+                      <th className="pb-1.5 text-right">ESTADO</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {accounts.map(acc => {
+                      const estimatedRisk = (acc.balance * (multiExecRiskPct / 100));
+                      // Estimated lot size based on symbol & balance
+                      const estimatedLots = Number(Math.max(0.01, (acc.balance / 100000) * multiExecRiskPct * 0.8).toFixed(2));
+                      return (
+                        <tr key={acc.id} className="text-slate-200">
+                          <td className="py-2 font-bold font-sans flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${acc.isActive ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                            <span>{acc.name}</span>
+                          </td>
+                          <td className="py-2 text-[10px] text-slate-400">
+                            {acc.accountType === 'PROP_FIRM_EVAL' ? 'Reto' : acc.accountType === 'PROP_FIRM_FUNDED' ? 'Fondeada' : acc.accountType === 'BROKER_REAL' ? 'Real' : 'Demo'}
+                          </td>
+                          <td className="py-2">{acc.currency === 'USD' ? '$' : '€'}{acc.balance.toLocaleString('es-ES')}</td>
+                          <td className="py-2 text-amber-300 font-bold">{acc.currency === 'USD' ? '$' : '€'}{estimatedRisk.toFixed(2)}</td>
+                          <td className="py-2 text-emerald-400 font-bold">{estimatedLots} lotes</td>
+                          <td className="py-2 text-right">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-sans font-bold ${
+                              acc.isActive ? 'bg-emerald-950 text-emerald-300' : 'bg-slate-800 text-slate-500'
+                            }`}>
+                              {acc.isActive ? 'Listo para Recibir' : 'Pausada'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Execute multi-trade button */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <span className="text-xs text-slate-400">
+                🔒 Todas las posiciones quedarán bajo la vigilancia simultánea del Guardián de Floating Equity.
+              </span>
+              <button
+                type="button"
+                onClick={handleDispatchMultiAccountTrade}
+                disabled={isDispatchingMulti}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20"
+              >
+                <Zap className={`w-4 h-4 ${isDispatchingMulti ? 'animate-spin' : ''}`} />
+                <span>
+                  {isDispatchingMulti ? 'Despachando a Servidores...' : `Despachar Orden Sincronizada a ${accounts.filter(a => a.isActive).length} Cuentas`}
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -1534,6 +2471,344 @@ export const CloudTradingDeskView: React.FC = () => {
                 Consumo eléctrico en casa: 0 Watt
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 1: VINCULAR NUEVA CUENTA DE BROKER / FONDEO ─── */}
+      {showNewAccountModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Vincular Nueva Cuenta de Trading</h3>
+                  <p className="text-xs text-slate-500">Añade brokers reales, desafíos de fondeo o cuentas demo para operar en paralelo.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewAccountModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer rounded-lg text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Presets Bar */}
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                ⚡ Plantillas Rápidas Preconfiguradas:
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => applyAccountPreset('FTMO_100K')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs transition cursor-pointer"
+                >
+                  FTMO $100k
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyAccountPreset('FUNDEDNEXT_50K')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs transition cursor-pointer"
+                >
+                  FundedNext €50k
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyAccountPreset('TOPSTEP_50K')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs transition cursor-pointer"
+                >
+                  Apex / Topstep $50k
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyAccountPreset('IC_MARKETS_DEMO')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs transition cursor-pointer"
+                >
+                  IC Markets Demo €10k
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyAccountPreset('IBKR_REAL')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs transition cursor-pointer"
+                >
+                  IBKR Real €25k
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateAccount} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Nombre Descriptivo:</label>
+                  <input
+                    type="text"
+                    value={newAccName}
+                    onChange={(e) => setNewAccName(e.target.value)}
+                    required
+                    placeholder="ej. FTMO Challenge $100k"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-1 focus:ring-amber-500 outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Broker / Firma:</label>
+                  <input
+                    type="text"
+                    value={newAccBroker}
+                    onChange={(e) => setNewAccBroker(e.target.value)}
+                    required
+                    placeholder="ej. FTMO, Topstep, Pepperstone"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-1 focus:ring-amber-500 outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Tipo de Cuenta:</label>
+                  <select
+                    value={newAccType}
+                    onChange={(e) => setNewAccType(e.target.value as AccountType)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-1 focus:ring-amber-500 outline-hidden"
+                  >
+                    <option value="PROP_FIRM_EVAL">Reto Evaluación (Fase 1/2)</option>
+                    <option value="PROP_FIRM_FUNDED">Fondeada Real (Funded)</option>
+                    <option value="BROKER_REAL">Broker Real (Capital Propio)</option>
+                    <option value="BROKER_DEMO">Cuenta Demo (Laboratorio)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Moneda Base:</label>
+                  <select
+                    value={newAccCurrency}
+                    onChange={(e) => setNewAccCurrency(e.target.value as any)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-1 focus:ring-amber-500 outline-hidden"
+                  >
+                    <option value="EUR">EUR (€)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="GBP">GBP (£)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Capital Inicial:</label>
+                  <input
+                    type="number"
+                    value={newAccInitialCap}
+                    onChange={(e) => setNewAccInitialCap(Number(e.target.value))}
+                    required
+                    min={100}
+                    step={1000}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono font-bold focus:ring-1 focus:ring-amber-500 outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Prop Firm Safeguards Section */}
+              <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/80 space-y-3">
+                <span className="font-bold text-amber-900 block flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-amber-600" />
+                  <span>Reglas de Riesgo & Guardián de Fondeo</span>
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Límite Diario Fatal (%):</label>
+                    <input
+                      type="number"
+                      value={newAccDailyLimit}
+                      onChange={(e) => setNewAccDailyLimit(Number(e.target.value))}
+                      step={0.1}
+                      min={1}
+                      max={20}
+                      className="w-full p-2 rounded-lg border border-slate-300 bg-white font-mono font-bold text-rose-700 outline-hidden"
+                    />
+                    <span className="text-[10px] text-slate-500">Pérdida donde suspenden</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Circuit Breaker IA (%):</label>
+                    <input
+                      type="number"
+                      value={newAccBreaker}
+                      onChange={(e) => setNewAccBreaker(Number(e.target.value))}
+                      step={0.1}
+                      min={0.5}
+                      max={15}
+                      className="w-full p-2 rounded-lg border border-slate-300 bg-white font-mono font-bold text-amber-700 outline-hidden"
+                    />
+                    <span className="text-[10px] text-slate-500">Liquidación preventiva</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Cálculo de Drawdown:</label>
+                    <select
+                      value={newAccCalcMode}
+                      onChange={(e) => setNewAccCalcMode(e.target.value as any)}
+                      className="w-full p-2 rounded-lg border border-slate-300 bg-white font-medium outline-hidden"
+                    >
+                      <option value="BALANCE_BASED">Balance-Based (FTMO/FundedNext)</option>
+                      <option value="TRAILING_EQUITY">Trailing Stop (Apex/Topstep)</option>
+                    </select>
+                    <span className="text-[10px] text-slate-500">Regla de la empresa</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Servidor (Broker / Gateway):</label>
+                  <input
+                    type="text"
+                    value={newAccServer}
+                    onChange={(e) => setNewAccServer(e.target.value)}
+                    placeholder="ej. FTMO-Live2 o ICMarkets-Live02"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono text-xs focus:ring-1 focus:ring-amber-500 outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Número de Cuenta / Login:</label>
+                  <input
+                    type="text"
+                    value={newAccNumber}
+                    onChange={(e) => setNewAccNumber(e.target.value)}
+                    placeholder="ej. 8891024"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono text-xs focus:ring-1 focus:ring-amber-500 outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowNewAccountModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingAccount}
+                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>{isCreatingAccount ? 'Vinculando...' : 'Vincular y Comenzar'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 2: EDITAR PARÁMETROS DE CUENTA ─── */}
+      {showEditAccountModal && editingAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-amber-600" />
+                <h3 className="font-bold text-base text-slate-900">Editar Reglas de {editingAccount.name}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditAccountModal(false);
+                  setEditingAccount(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateAccount} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Nombre de la Cuenta:</label>
+                <input
+                  type="text"
+                  value={editingAccount.name}
+                  onChange={(e) => setEditingAccount({ ...editingAccount, name: e.target.value })}
+                  required
+                  className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium outline-hidden"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Límite Drawdown Diario (%):</label>
+                  <input
+                    type="number"
+                    step={0.1}
+                    value={editingAccount.dailyDrawdownLimitPct}
+                    onChange={(e) => setEditingAccount({ ...editingAccount, dailyDrawdownLimitPct: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold text-rose-700 outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Circuit Breaker IA (%):</label>
+                  <input
+                    type="number"
+                    step={0.1}
+                    value={editingAccount.circuitBreakerThresholdPct}
+                    onChange={(e) => setEditingAccount({ ...editingAccount, circuitBreakerThresholdPct: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold text-amber-700 outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Modo de Cálculo:</label>
+                  <select
+                    value={editingAccount.calculationMode}
+                    onChange={(e) => setEditingAccount({ ...editingAccount, calculationMode: e.target.value as any })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 outline-hidden"
+                  >
+                    <option value="BALANCE_BASED">Balance-Based</option>
+                    <option value="TRAILING_EQUITY">Trailing Equity Intradía</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Riesgo Máx por Trade (%):</label>
+                  <input
+                    type="number"
+                    step={0.1}
+                    value={editingAccount.maxRiskPerTradePct}
+                    onChange={(e) => setEditingAccount({ ...editingAccount, maxRiskPerTradePct: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditAccountModal(false);
+                    setEditingAccount(null);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold cursor-pointer"
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

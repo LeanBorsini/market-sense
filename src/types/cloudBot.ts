@@ -10,6 +10,52 @@ export interface TradePostMortem {
   marketRegime: 'ALTA_VOLATILIDAD' | 'BARRIDO_FONDEO' | 'TENDENCIA_LIMPIA' | 'RANGO_LATERAL';
 }
 
+export type AccountType = 'PROP_FIRM_EVAL' | 'PROP_FIRM_FUNDED' | 'BROKER_REAL' | 'BROKER_DEMO';
+
+export interface TradingAccount {
+  id: string;
+  name: string; // e.g. "FTMO Challenge $100k"
+  broker: string; // "FTMO", "FundedNext", "Topstep", "IC Markets", "Pepperstone", "Interactive Brokers"
+  accountType: AccountType;
+  accountNumber: string;
+  server: string;
+  currency: 'EUR' | 'USD' | 'GBP';
+  initialCapital: number;
+  balance: number;
+  currentEquity: number;
+  floatingPnlEur: number;
+  floatingPnlPct: number;
+  dailyPnlEur: number;
+  dailyPnlPct: number;
+  peakEquityToday: number;
+  
+  // Prop Firm Risk Rules
+  dailyDrawdownLimitPct: number;
+  circuitBreakerThresholdPct: number;
+  warningThresholdPct: number;
+  deriskThresholdPct: number;
+  calculationMode: 'BALANCE_BASED' | 'TRAILING_EQUITY';
+  totalDrawdownLimitPct: number;
+  maxRiskPerTradePct: number;
+  
+  // Status
+  isActive: boolean; // Trading enabled or paused on this account
+  isDrawdownLocked: boolean;
+  circuitBreakerTripped: boolean;
+  circuitBreakerReason?: string;
+  
+  // Performance
+  activeOrdersCount: number;
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  winRatePct: number;
+  profitFactor: number;
+  netPnlEur: number;
+  avgSlippagePips: number;
+  tags: string[];
+}
+
 export interface DetailedTrade {
   id: string;
   ticket: string;
@@ -20,6 +66,9 @@ export interface DetailedTrade {
   strategyId: string;
   strategyName: string;
   status: TradeStatus;
+  accountId?: string;
+  accountName?: string;
+  broker?: string;
   
   // Execution prices & metrics
   entryPrice: number;
@@ -107,6 +156,10 @@ export interface CloudBotState {
   activeOrders: DetailedTrade[];
   closedTrades: DetailedTrade[];
   evolutionLog: EvolutionaryAdjustment[];
+
+  // Multi-Account & Multi-Broker Management
+  accounts: TradingAccount[];
+  activeAccountId: string;
 }
 
 export interface SizingCalculationRequest {

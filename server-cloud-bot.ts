@@ -19,6 +19,9 @@ export interface DetailedTrade {
   strategyId: string;
   strategyName: string;
   status: 'ACTIVE' | 'CLOSED_TP' | 'CLOSED_SL' | 'BREAKEVEN' | 'PENDING';
+  accountId?: string;
+  accountName?: string;
+  broker?: string;
   
   entryPrice: number;
   exitPrice?: number;
@@ -47,6 +50,232 @@ export interface DetailedTrade {
   operatorNotes?: string;
 }
 
+export type AccountType = 'PROP_FIRM_EVAL' | 'PROP_FIRM_FUNDED' | 'BROKER_REAL' | 'BROKER_DEMO';
+
+export interface TradingAccount {
+  id: string;
+  name: string;
+  broker: string;
+  accountType: AccountType;
+  accountNumber: string;
+  server: string;
+  currency: 'EUR' | 'USD' | 'GBP';
+  initialCapital: number;
+  balance: number;
+  currentEquity: number;
+  floatingPnlEur: number;
+  floatingPnlPct: number;
+  dailyPnlEur: number;
+  dailyPnlPct: number;
+  peakEquityToday: number;
+  
+  dailyDrawdownLimitPct: number;
+  circuitBreakerThresholdPct: number;
+  warningThresholdPct: number;
+  deriskThresholdPct: number;
+  calculationMode: 'BALANCE_BASED' | 'TRAILING_EQUITY';
+  totalDrawdownLimitPct: number;
+  maxRiskPerTradePct: number;
+  
+  isActive: boolean;
+  isDrawdownLocked: boolean;
+  circuitBreakerTripped: boolean;
+  circuitBreakerReason?: string;
+  
+  activeOrdersCount: number;
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  winRatePct: number;
+  profitFactor: number;
+  netPnlEur: number;
+  avgSlippagePips: number;
+  tags: string[];
+}
+
+export const INITIAL_ACCOUNTS: TradingAccount[] = [
+  {
+    id: 'acc-fn-50k',
+    name: 'FundedNext Financiada €50k (Real)',
+    broker: 'FundedNext',
+    accountType: 'PROP_FIRM_FUNDED',
+    accountNumber: 'FN-4120985',
+    server: 'FundedNext-Live01',
+    currency: 'EUR',
+    initialCapital: 50000.00,
+    balance: 52380.00,
+    currentEquity: 52490.50,
+    floatingPnlEur: 110.50,
+    floatingPnlPct: 0.21,
+    dailyPnlEur: 185.50,
+    dailyPnlPct: 0.35,
+    peakEquityToday: 52520.00,
+    dailyDrawdownLimitPct: 4.0,
+    circuitBreakerThresholdPct: 3.2,
+    warningThresholdPct: 2.0,
+    deriskThresholdPct: 2.8,
+    calculationMode: 'BALANCE_BASED',
+    totalDrawdownLimitPct: 8.0,
+    maxRiskPerTradePct: 0.75,
+    isActive: true,
+    isDrawdownLocked: false,
+    circuitBreakerTripped: false,
+    activeOrdersCount: 1,
+    totalTrades: 18,
+    winningTrades: 13,
+    losingTrades: 5,
+    winRatePct: 72.2,
+    profitFactor: 2.45,
+    netPnlEur: 2380.00,
+    avgSlippagePips: 0.2,
+    tags: ['Fondeada Real', 'Reparto 80/20', 'Meta Retiro: 12d']
+  },
+  {
+    id: 'acc-ftmo-100k',
+    name: 'FTMO Reto Evaluación $100k',
+    broker: 'FTMO',
+    accountType: 'PROP_FIRM_EVAL',
+    accountNumber: 'FTMO-8891024',
+    server: 'FTMO-Live2',
+    currency: 'USD',
+    initialCapital: 100000.00,
+    balance: 104820.00,
+    currentEquity: 104820.00,
+    floatingPnlEur: 0,
+    floatingPnlPct: 0,
+    dailyPnlEur: 320.00,
+    dailyPnlPct: 0.31,
+    peakEquityToday: 105100.00,
+    dailyDrawdownLimitPct: 5.0,
+    circuitBreakerThresholdPct: 4.0,
+    warningThresholdPct: 2.5,
+    deriskThresholdPct: 3.5,
+    calculationMode: 'BALANCE_BASED',
+    totalDrawdownLimitPct: 10.0,
+    maxRiskPerTradePct: 1.0,
+    isActive: true,
+    isDrawdownLocked: false,
+    circuitBreakerTripped: false,
+    activeOrdersCount: 0,
+    totalTrades: 24,
+    winningTrades: 16,
+    losingTrades: 8,
+    winRatePct: 66.7,
+    profitFactor: 2.15,
+    netPnlEur: 4820.00,
+    avgSlippagePips: 0.15,
+    tags: ['Fase 1 Evaluación', 'Meta: $10,000 (+4.82%)', 'Sin Límite Tiempo']
+  },
+  {
+    id: 'acc-apex-50k',
+    name: 'Topstep / Apex Futuros $50k',
+    broker: 'Topstep',
+    accountType: 'PROP_FIRM_EVAL',
+    accountNumber: 'TOP-992014',
+    server: 'Rithmic-Live01',
+    currency: 'USD',
+    initialCapital: 50000.00,
+    balance: 51650.00,
+    currentEquity: 51710.00,
+    floatingPnlEur: 60.00,
+    floatingPnlPct: 0.12,
+    dailyPnlEur: 140.00,
+    dailyPnlPct: 0.27,
+    peakEquityToday: 51750.00,
+    dailyDrawdownLimitPct: 3.5,
+    circuitBreakerThresholdPct: 2.8,
+    warningThresholdPct: 1.8,
+    deriskThresholdPct: 2.4,
+    calculationMode: 'TRAILING_EQUITY',
+    totalDrawdownLimitPct: 5.0,
+    maxRiskPerTradePct: 0.5,
+    isActive: true,
+    isDrawdownLocked: false,
+    circuitBreakerTripped: false,
+    activeOrdersCount: 0,
+    totalTrades: 15,
+    winningTrades: 10,
+    losingTrades: 5,
+    winRatePct: 66.7,
+    profitFactor: 1.95,
+    netPnlEur: 1650.00,
+    avgSlippagePips: 0.1,
+    tags: ['Trailing Intradía', 'Micro ES/NQ', 'Regla de Consistencia']
+  },
+  {
+    id: 'acc-ic-10k',
+    name: 'IC Markets Demo Scalp €10k',
+    broker: 'IC Markets',
+    accountType: 'BROKER_DEMO',
+    accountNumber: 'IC-550183',
+    server: 'ICMarketsSC-Demo02',
+    currency: 'EUR',
+    initialCapital: 10000.00,
+    balance: 10420.50,
+    currentEquity: 10452.30,
+    floatingPnlEur: 31.80,
+    floatingPnlPct: 0.30,
+    dailyPnlEur: 185.50,
+    dailyPnlPct: 1.85,
+    peakEquityToday: 10475.00,
+    dailyDrawdownLimitPct: 5.0,
+    circuitBreakerThresholdPct: 3.5,
+    warningThresholdPct: 2.0,
+    deriskThresholdPct: 2.8,
+    calculationMode: 'BALANCE_BASED',
+    totalDrawdownLimitPct: 10.0,
+    maxRiskPerTradePct: 1.0,
+    isActive: true,
+    isDrawdownLocked: false,
+    circuitBreakerTripped: false,
+    activeOrdersCount: 1,
+    totalTrades: 12,
+    winningTrades: 8,
+    losingTrades: 4,
+    winRatePct: 66.7,
+    profitFactor: 2.20,
+    netPnlEur: 420.50,
+    avgSlippagePips: 0.1,
+    tags: ['Laboratorio Pruebas', 'Raw Spreads ECN', 'Nuevos Algoritmos']
+  },
+  {
+    id: 'acc-ibkr-25k',
+    name: 'Interactive Brokers Real €25k',
+    broker: 'Interactive Brokers',
+    accountType: 'BROKER_REAL',
+    accountNumber: 'IB-U8821941',
+    server: 'IBKR-Gateway (Live)',
+    currency: 'EUR',
+    initialCapital: 25000.00,
+    balance: 26140.00,
+    currentEquity: 26185.00,
+    floatingPnlEur: 45.00,
+    floatingPnlPct: 0.17,
+    dailyPnlEur: 95.00,
+    dailyPnlPct: 0.36,
+    peakEquityToday: 26210.00,
+    dailyDrawdownLimitPct: 3.0,
+    circuitBreakerThresholdPct: 2.5,
+    warningThresholdPct: 1.5,
+    deriskThresholdPct: 2.0,
+    calculationMode: 'BALANCE_BASED',
+    totalDrawdownLimitPct: 6.0,
+    maxRiskPerTradePct: 0.5,
+    isActive: true,
+    isDrawdownLocked: false,
+    circuitBreakerTripped: false,
+    activeOrdersCount: 0,
+    totalTrades: 10,
+    winningTrades: 7,
+    losingTrades: 3,
+    winRatePct: 70.0,
+    profitFactor: 2.30,
+    netPnlEur: 1140.00,
+    avgSlippagePips: 0.05,
+    tags: ['Capital Propio Real', 'Conservador', 'S&P 500 + ETFs']
+  }
+];
+
 export interface EvolutionaryAdjustment {
   id: string;
   timestamp: string;
@@ -63,16 +292,18 @@ export interface EvolutionaryAdjustment {
 let cloudBotState = {
   isRunning: true,
   lastTickTime: new Date().toISOString(),
-  accountBalance: 10420.50,
-  initialCapital: 10000.00,
+  accounts: INITIAL_ACCOUNTS,
+  activeAccountId: 'acc-fn-50k',
+  accountBalance: 52380.00,
+  initialCapital: 50000.00,
   currency: 'EUR',
   
   // Real-time Floating Equity & Prop Firm Protection Engine
-  currentEquity: 10452.30,
-  floatingPnlEur: 31.80,
-  floatingPnlPct: 0.30,
-  peakEquityToday: 10475.00,
-  totalCommittedRiskPct: 1.0,
+  currentEquity: 52490.50,
+  floatingPnlEur: 110.50,
+  floatingPnlPct: 0.21,
+  peakEquityToday: 52520.00,
+  totalCommittedRiskPct: 0.75,
   
   // Prop Firm Thresholds & Sentinel
   dailyDrawdownLimitPct: 4.0, // Hard fatal limit set by prop firm (FTMO / Apex / FundedNext)
@@ -83,21 +314,21 @@ let cloudBotState = {
   totalDrawdownLimitPct: 8.0,
   
   dailyPnlEur: 185.50,
-  dailyPnlPct: 1.85,
+  dailyPnlPct: 0.35,
   isDrawdownLocked: false,
   circuitBreakerTripped: false,
   circuitBreakerReason: '',
   circuitBreakerTimestamp: '',
   emergencyLiquidationsCount: 1, // Historical record of accounts saved
   
-  totalTrades: 12,
-  winningTrades: 8,
-  losingTrades: 4,
-  winRatePct: 66.7,
+  totalTrades: 18,
+  winningTrades: 13,
+  losingTrades: 5,
+  winRatePct: 72.2,
   
-  wickHuntsAvoided: 5,
+  wickHuntsAvoided: 7,
   wickHuntsDetected: 2,
-  antiHuntEfficiencyPct: 71.4,
+  antiHuntEfficiencyPct: 77.8,
   
   // Learned Anti-Hunt Cushions per symbol (in pips)
   cushionsBySymbol: {
@@ -398,6 +629,52 @@ export function calculateDynamicSizing(symbol: string, balance: number, riskPerc
   };
 }
 
+// ─── MULTI-ACCOUNT STATE SYNCHRONIZATION ───
+export function syncStateWithActiveAccount(accId: string) {
+  const acc = cloudBotState.accounts.find(a => a.id === accId);
+  if (!acc) return;
+  cloudBotState.activeAccountId = acc.id;
+  cloudBotState.accountBalance = acc.balance;
+  cloudBotState.initialCapital = acc.initialCapital;
+  cloudBotState.currency = acc.currency;
+  cloudBotState.currentEquity = acc.currentEquity;
+  cloudBotState.floatingPnlEur = acc.floatingPnlEur;
+  cloudBotState.floatingPnlPct = acc.floatingPnlPct;
+  cloudBotState.peakEquityToday = acc.peakEquityToday;
+  cloudBotState.dailyDrawdownLimitPct = acc.dailyDrawdownLimitPct;
+  cloudBotState.circuitBreakerThresholdPct = acc.circuitBreakerThresholdPct;
+  cloudBotState.warningThresholdPct = acc.warningThresholdPct;
+  cloudBotState.deriskThresholdPct = acc.deriskThresholdPct;
+  cloudBotState.calculationMode = acc.calculationMode;
+  cloudBotState.totalDrawdownLimitPct = acc.totalDrawdownLimitPct;
+  cloudBotState.dailyPnlEur = acc.dailyPnlEur;
+  cloudBotState.dailyPnlPct = acc.dailyPnlPct;
+  cloudBotState.isDrawdownLocked = acc.isDrawdownLocked;
+  cloudBotState.circuitBreakerTripped = acc.circuitBreakerTripped;
+  cloudBotState.circuitBreakerReason = acc.circuitBreakerReason || '';
+}
+
+export function syncActiveAccountFromState() {
+  const acc = cloudBotState.accounts.find(a => a.id === cloudBotState.activeAccountId);
+  if (!acc) return;
+  acc.balance = cloudBotState.accountBalance;
+  acc.initialCapital = cloudBotState.initialCapital;
+  acc.currentEquity = cloudBotState.currentEquity;
+  acc.floatingPnlEur = cloudBotState.floatingPnlEur;
+  acc.floatingPnlPct = cloudBotState.floatingPnlPct;
+  acc.dailyPnlEur = cloudBotState.dailyPnlEur;
+  acc.dailyPnlPct = cloudBotState.dailyPnlPct;
+  acc.peakEquityToday = cloudBotState.peakEquityToday;
+  acc.dailyDrawdownLimitPct = cloudBotState.dailyDrawdownLimitPct;
+  acc.circuitBreakerThresholdPct = cloudBotState.circuitBreakerThresholdPct;
+  acc.calculationMode = cloudBotState.calculationMode;
+  acc.totalDrawdownLimitPct = cloudBotState.totalDrawdownLimitPct;
+  acc.isDrawdownLocked = cloudBotState.isDrawdownLocked;
+  acc.circuitBreakerTripped = cloudBotState.circuitBreakerTripped;
+  acc.circuitBreakerReason = cloudBotState.circuitBreakerReason;
+  acc.activeOrdersCount = cloudBotState.activeOrders.filter(o => !o.accountId || o.accountId === acc.id).length;
+}
+
 // ─── CLOUD BACKGROUND ENGINE LOOP ───
 // Runs autonomously 24/7 on the server
 let backgroundLoopRunning = false;
@@ -642,6 +919,9 @@ function startCloudBackgroundWorker() {
 
       cloudBotState.activeOrders.push(newTrade);
     }
+
+    // 4. Synchronize Multi-Account portfolio states
+    syncActiveAccountFromState();
   }, 4000); // High-frequency Sentinel tick every 4 seconds
 }
 
@@ -924,10 +1204,273 @@ export function initCloudBotRoutes(app: express.Express) {
       cloudBotState.totalDrawdownLimitPct = Number(totalDrawdownLimitPct);
     }
 
+    syncActiveAccountFromState();
+
     res.json({
       success: true,
       message: 'Configuración del Guardián de Fondeo actualizada',
       state: cloudBotState
+    });
+  });
+
+  // ─── 11. MULTI-ACCOUNT & MULTI-BROKER MANAGEMENT ENDPOINTS ───
+  // Get all registered accounts and active account ID
+  app.get('/api/cloud-bot/accounts', (req, res) => {
+    syncActiveAccountFromState();
+    res.json({
+      success: true,
+      accounts: cloudBotState.accounts,
+      activeAccountId: cloudBotState.activeAccountId
+    });
+  });
+
+  // Switch the primary active account
+  app.post('/api/cloud-bot/accounts/switch', (req, res) => {
+    const { accountId } = req.body;
+    const target = cloudBotState.accounts.find(a => a.id === accountId);
+    if (!target) {
+      return res.status(404).json({ error: 'Cuenta no encontrada' });
+    }
+
+    syncActiveAccountFromState();
+    syncStateWithActiveAccount(accountId);
+
+    res.json({
+      success: true,
+      message: `Cambiado a cuenta activa: ${target.name} (${target.broker})`,
+      activeAccountId: target.id,
+      state: cloudBotState
+    });
+  });
+
+  // Create a new trading account (Demo, Prop Firm Eval, Prop Firm Real, Broker Real)
+  app.post('/api/cloud-bot/accounts/create', (req, res) => {
+    const {
+      name,
+      broker = 'FTMO',
+      accountType = 'PROP_FIRM_EVAL',
+      accountNumber,
+      server = 'Live-01',
+      currency = 'USD',
+      initialCapital = 50000,
+      dailyDrawdownLimitPct = 4.0,
+      circuitBreakerThresholdPct = 3.2,
+      calculationMode = 'BALANCE_BASED',
+      totalDrawdownLimitPct = 8.0,
+      maxRiskPerTradePct = 1.0,
+      tags = []
+    } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'El nombre de la cuenta es obligatorio' });
+    }
+
+    const initCap = Number(initialCapital) || 50000;
+    const genNumber = accountNumber || `${broker.slice(0, 3).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const newAcc: TradingAccount = {
+      id: `acc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: name.trim(),
+      broker,
+      accountType,
+      accountNumber: genNumber,
+      server,
+      currency,
+      initialCapital: initCap,
+      balance: initCap,
+      currentEquity: initCap,
+      floatingPnlEur: 0,
+      floatingPnlPct: 0,
+      dailyPnlEur: 0,
+      dailyPnlPct: 0,
+      peakEquityToday: initCap,
+      dailyDrawdownLimitPct: Number(dailyDrawdownLimitPct) || 4.0,
+      circuitBreakerThresholdPct: Number(circuitBreakerThresholdPct) || 3.2,
+      warningThresholdPct: Number((dailyDrawdownLimitPct * 0.5).toFixed(1)),
+      deriskThresholdPct: Number((dailyDrawdownLimitPct * 0.7).toFixed(1)),
+      calculationMode,
+      totalDrawdownLimitPct: Number(totalDrawdownLimitPct) || 8.0,
+      maxRiskPerTradePct: Number(maxRiskPerTradePct) || 1.0,
+      isActive: true,
+      isDrawdownLocked: false,
+      circuitBreakerTripped: false,
+      activeOrdersCount: 0,
+      totalTrades: 0,
+      winningTrades: 0,
+      losingTrades: 0,
+      winRatePct: 0,
+      profitFactor: 0,
+      netPnlEur: 0,
+      avgSlippagePips: 0.15,
+      tags: tags.length > 0 ? tags : [accountType === 'PROP_FIRM_EVAL' ? 'Evaluación' : accountType === 'PROP_FIRM_FUNDED' ? 'Fondeada Real' : 'Operativa Activa']
+    };
+
+    cloudBotState.accounts.push(newAcc);
+
+    res.json({
+      success: true,
+      message: `Nueva cuenta ${newAcc.name} vinculada al Centro de Mando`,
+      account: newAcc,
+      accounts: cloudBotState.accounts
+    });
+  });
+
+  // Toggle active/pause trading on a specific account
+  app.post('/api/cloud-bot/accounts/:id/toggle', (req, res) => {
+    const { id } = req.params;
+    const acc = cloudBotState.accounts.find(a => a.id === id);
+    if (!acc) {
+      return res.status(404).json({ error: 'Cuenta no encontrada' });
+    }
+
+    acc.isActive = !acc.isActive;
+
+    res.json({
+      success: true,
+      message: `Cuenta ${acc.name} ${acc.isActive ? 'activada para trading' : 'pausada temporalmente'}`,
+      account: acc,
+      accounts: cloudBotState.accounts
+    });
+  });
+
+  // Update account details/rules
+  app.post('/api/cloud-bot/accounts/:id/update', (req, res) => {
+    const { id } = req.params;
+    const acc = cloudBotState.accounts.find(a => a.id === id);
+    if (!acc) {
+      return res.status(404).json({ error: 'Cuenta no encontrada' });
+    }
+
+    const {
+      name,
+      broker,
+      accountType,
+      dailyDrawdownLimitPct,
+      circuitBreakerThresholdPct,
+      calculationMode,
+      totalDrawdownLimitPct,
+      maxRiskPerTradePct,
+      tags
+    } = req.body;
+
+    if (name) acc.name = name;
+    if (broker) acc.broker = broker;
+    if (accountType) acc.accountType = accountType;
+    if (dailyDrawdownLimitPct !== undefined) acc.dailyDrawdownLimitPct = Number(dailyDrawdownLimitPct);
+    if (circuitBreakerThresholdPct !== undefined) acc.circuitBreakerThresholdPct = Number(circuitBreakerThresholdPct);
+    if (calculationMode !== undefined) acc.calculationMode = calculationMode;
+    if (totalDrawdownLimitPct !== undefined) acc.totalDrawdownLimitPct = Number(totalDrawdownLimitPct);
+    if (maxRiskPerTradePct !== undefined) acc.maxRiskPerTradePct = Number(maxRiskPerTradePct);
+    if (tags && Array.isArray(tags)) acc.tags = tags;
+
+    if (cloudBotState.activeAccountId === acc.id) {
+      syncStateWithActiveAccount(acc.id);
+    }
+
+    res.json({
+      success: true,
+      message: `Parámetros de la cuenta ${acc.name} actualizados`,
+      account: acc,
+      accounts: cloudBotState.accounts
+    });
+  });
+
+  // Delete account
+  app.post('/api/cloud-bot/accounts/:id/delete', (req, res) => {
+    const { id } = req.params;
+    if (cloudBotState.accounts.length <= 1) {
+      return res.status(400).json({ error: 'No puedes eliminar la única cuenta del sistema' });
+    }
+
+    const index = cloudBotState.accounts.findIndex(a => a.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Cuenta no encontrada' });
+    }
+
+    const [deleted] = cloudBotState.accounts.splice(index, 1);
+    
+    // If active account was deleted, switch to the first remaining one
+    if (cloudBotState.activeAccountId === id) {
+      syncStateWithActiveAccount(cloudBotState.accounts[0].id);
+    }
+
+    res.json({
+      success: true,
+      message: `Cuenta ${deleted.name} eliminada del sistema`,
+      accounts: cloudBotState.accounts,
+      activeAccountId: cloudBotState.activeAccountId
+    });
+  });
+
+  // 12. MULTI-ACCOUNT SYNCHRONIZED EXECUTION (Copy-Trading / Multi-Account Dispatch)
+  // Executes an order sized proportionally for each active account according to its own balance and rules
+  app.post('/api/cloud-bot/accounts/multi-execute', (req, res) => {
+    const {
+      symbol = 'S&P 500 (VOO/ES)',
+      direction = 'BUY',
+      strategyName = 'Ejecución Sincronizada Multi-Broker',
+      riskPercent = 1.0,
+      targetAccountIds = [] // empty means all active accounts
+    } = req.body;
+
+    const targetAccounts = cloudBotState.accounts.filter(a => {
+      if (!a.isActive || a.isDrawdownLocked || a.circuitBreakerTripped) return false;
+      if (targetAccountIds.length > 0) return targetAccountIds.includes(a.id);
+      return true;
+    });
+
+    if (targetAccounts.length === 0) {
+      return res.status(400).json({
+        error: 'No hay cuentas activas o disponibles sin bloqueo de drawdown para ejecutar'
+      });
+    }
+
+    const executedOrders: DetailedTrade[] = [];
+
+    targetAccounts.forEach(acc => {
+      const sizing = calculateDynamicSizing(symbol, acc.balance, Number(riskPercent));
+      const order: DetailedTrade = {
+        id: `trd-multi-${acc.id}-${Date.now()}`,
+        ticket: `#${acc.broker.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        timestamp: new Date().toISOString(),
+        symbol,
+        direction,
+        strategyId: 'multi_account_sync',
+        strategyName,
+        status: 'ACTIVE',
+        accountId: acc.id,
+        accountName: acc.name,
+        broker: acc.broker,
+        entryPrice: sizing.currentPrice,
+        currentPrice: sizing.currentPrice,
+        slPrice: sizing.slPriceEstimateBuy,
+        tpPrice: sizing.tpPriceEstimateBuy,
+        slPips: sizing.recommendedSlPips,
+        tpPips: sizing.estimatedTpPips,
+        riskPercent: Number(riskPercent),
+        lotSize: sizing.calculatedLots,
+        riskAmountEur: sizing.riskAmount,
+        floatingPnlEur: 0,
+        floatingPnlPct: 0,
+        spreadAtEntryPips: acc.avgSlippagePips * 3 + 0.8,
+        slippagePips: acc.avgSlippagePips,
+        antiHuntCushionPips: sizing.antiHuntCushionPips,
+        entryRationale: `Orden multi-cuenta ejecutada en ${acc.broker} (${acc.name}). Lotaje adaptado: ${sizing.calculatedLots} lotes para arriesgar exactamente ${riskPercent}% (${sizing.riskAmount} ${acc.currency}).`,
+        operatorNotes: `Despachado a través del Gestor Multi-Cuentas con protección de drawdown activo.`
+      };
+
+      cloudBotState.activeOrders.unshift(order);
+      acc.activeOrdersCount += 1;
+      executedOrders.push(order);
+    });
+
+    syncActiveAccountFromState();
+
+    res.json({
+      success: true,
+      executedCount: executedOrders.length,
+      orders: executedOrders,
+      message: `Orden despachada con éxito en ${executedOrders.length} cuenta(s) con lotajes calculados dinámicamente`
     });
   });
 }

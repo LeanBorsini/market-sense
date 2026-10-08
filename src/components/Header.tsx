@@ -15,9 +15,11 @@ import {
   BarChart2, 
   HelpCircle, 
   Sparkles, 
-  Globe,
+  Globe, 
   FlaskConical,
-  HardDrive
+  HardDrive,
+  Shield,
+  Lock
 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { ActiveSection } from '../types/market';
@@ -74,9 +76,26 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Quick Actions: PWA Install & User Profile */}
+            {/* Quick Actions: PWA Install, Private Desk (Owner) & User Profile */}
             <div className="flex items-center gap-2">
               <PWAInstallButton />
+
+              {/* Private Operator Desk (Isolated from public fundamental users) */}
+              <button
+                type="button"
+                onClick={() => setActiveSection(activeSection === 'fedora_bot' ? 'watchlist' : 'fedora_bot')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer ${
+                  activeSection === 'fedora_bot'
+                    ? 'bg-amber-900 text-amber-100 border-amber-700 shadow-sm'
+                    : 'bg-[#F2ECE1] hover:bg-[#EAE3D6] text-slate-700 border-[#DDD8CD]'
+                }`}
+                title="Consola Privada del Bot (Aislada de usuarios de fundamentales)"
+              >
+                <Lock className={`w-3.5 h-3.5 ${activeSection === 'fedora_bot' ? 'text-amber-300' : 'text-slate-500'}`} />
+                <span className="hidden sm:inline text-[11px]">
+                  {activeSection === 'fedora_bot' ? 'Cerrar Desk Privado' : 'Desk Privado'}
+                </span>
+              </button>
 
               {currentUser ? (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#EFECE4] border border-[#DDD8CD] text-xs">
@@ -201,22 +220,6 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <FlaskConical className="w-4 h-4 text-teal-700" />
               <span>Laboratorio & Simulación</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveSection('fedora_bot')}
-              className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-                activeSection === 'fedora_bot'
-                  ? 'bg-white text-blue-900 font-bold border border-[#DDD8CD] shadow-xs'
-                  : 'text-slate-600 hover:text-[#191C21]'
-              }`}
-            >
-              <HardDrive className="w-4 h-4 text-blue-600" />
-              <span>Bot Autónomo Fedora</span>
-              <span className="text-[10px] px-1 py-0.2 rounded bg-blue-100 text-blue-800 font-mono font-bold">
-                Linux
-              </span>
             </button>
           </nav>
         </div>

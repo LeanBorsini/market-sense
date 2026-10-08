@@ -296,6 +296,25 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'MarketSense AI Full-Stack Server' });
 });
 
+// Fedora runner files direct download endpoints
+app.get('/api/fedora-bot/marketsense_bot.py', (req, res) => {
+  const filePath = path.resolve(process.cwd(), 'fedora-runner', 'marketsense_bot.py');
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.sendFile(filePath);
+  }
+  return res.status(404).send('File not found');
+});
+
+app.get('/api/fedora-bot/install-fedora.sh', (req, res) => {
+  const filePath = path.resolve(process.cwd(), 'fedora-runner', 'install-fedora.sh');
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.sendFile(filePath);
+  }
+  return res.status(404).send('File not found');
+});
+
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
   const distPath = path.resolve(process.cwd(), 'dist');

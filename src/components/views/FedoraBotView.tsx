@@ -596,16 +596,46 @@ cd /opt/marketsense-bot`}
                   </pre>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 space-y-2">
+                <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 space-y-3">
                   <div className="font-bold flex items-center gap-1.5">
                     <Download className="w-4 h-4 text-blue-700" />
-                    Colocar los dos archivos del bot:
+                    Colocar los dos archivos del bot en /opt/marketsense-bot:
                   </div>
-                  <p className="text-[11px] text-blue-800 leading-relaxed">
-                    1. <strong>config.json:</strong> Descárgalo desde esta misma página con el botón verde superior y muévelo a <code>/opt/marketsense-bot/config.json</code> (o copia su contenido con <code>sudo nano /opt/marketsense-bot/config.json</code>).
-                    <br />
-                    2. <strong>marketsense_bot.py:</strong> Cópialo de la pestaña "Archivos del Paquete" más abajo y pégalo con <code>sudo nano /opt/marketsense-bot/marketsense_bot.py</code>.
-                  </p>
+
+                  <div className="bg-white p-3 rounded-lg border border-blue-200/70 space-y-2">
+                    <div className="font-semibold text-slate-900 flex items-center justify-between">
+                      <span>1. marketsense_bot.py (Descarga directa en 1 segundo):</span>
+                      <button
+                        onClick={() => handleCopy(`sudo curl -fsSL "${typeof window !== 'undefined' ? window.location.origin : 'https://ais-pre-ha7czbqgcwdqrtd6wm77nr-928008285049.europe-west2.run.app'}/api/fedora-bot/marketsense_bot.py" -o /opt/marketsense-bot/marketsense_bot.py\nsudo chmod +x /opt/marketsense-bot/marketsense_bot.py`)}
+                        className="px-2 py-1 rounded bg-blue-100 hover:bg-blue-200 text-blue-800 text-[10px] font-bold flex items-center gap-1 transition"
+                      >
+                        <Copy className="w-3 h-3 text-blue-700" />
+                        <span>Copiar curl</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-600">
+                      Evita errores de copiar y pegar en la terminal. Ejecuta este comando para descargar el archivo limpio y preparado:
+                    </p>
+                    <div className="bg-slate-950 p-2 rounded text-[11px] font-mono text-emerald-400 break-all select-all">
+                      sudo curl -fsSL "{typeof window !== 'undefined' ? window.location.origin : 'https://ais-pre-ha7czbqgcwdqrtd6wm77nr-928008285049.europe-west2.run.app'}/api/fedora-bot/marketsense_bot.py" -o /opt/marketsense-bot/marketsense_bot.py && sudo chmod +x /opt/marketsense-bot/marketsense_bot.py
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-lg border border-blue-200/70 space-y-2">
+                    <div className="font-semibold text-slate-900 flex items-center justify-between">
+                      <span>2. config.json (Con tus credenciales demo):</span>
+                      <button
+                        onClick={handleDownloadConfig}
+                        className="px-2 py-1 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-[10px] font-bold flex items-center gap-1 transition"
+                      >
+                        <Download className="w-3 h-3 text-emerald-700" />
+                        <span>Descargar config.json</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-600">
+                      Descárgalo desde el botón de arriba y cópialo a la carpeta, o edítalo con <code>sudo nano /opt/marketsense-bot/config.json</code>.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex justify-between items-center pt-2">
@@ -662,6 +692,33 @@ python3 /opt/marketsense-bot/marketsense_bot.py
                     <div className="text-emerald-400">[2026-10-08 17:02:16] Web panel disponible en http://0.0.0.0:8080 (LAN)</div>
                     <div className="text-slate-400">[2026-10-08 17:02:18] Evaluando 3 estrategias del S&P 500 (VOO) en paralelo...</div>
                     <div className="text-amber-300">[VOO] Precio actual: 584.50 $ | Esperando gatillo Pullback SMA 200 o Liquidaciones VIX</div>
+                  </div>
+                </div>
+
+                {/* TROUBLESHOOTING BOX FOR NAMEERROR: PYTHON3 */}
+                <div className="bg-amber-50 border border-amber-300 rounded-xl p-3.5 text-xs text-amber-950 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-amber-900">
+                    <HelpCircle className="w-4 h-4 text-amber-700" />
+                    <span>¿Te apareció: <code>NameError: name 'python3' is not defined</code>?</span>
+                  </div>
+                  <p className="text-[11px] text-amber-900 leading-relaxed">
+                    <strong>Motivo:</strong> Al abrir el editor <code>nano</code>, se pegó por error el texto del comando en la línea 6 dentro del propio código Python.
+                  </p>
+                  <div className="bg-white p-2.5 rounded-lg border border-amber-200 space-y-1.5 text-[11px]">
+                    <span className="font-semibold text-slate-900">Solución instantánea (descargar archivo limpio):</span>
+                    <div className="bg-slate-950 p-2 rounded text-emerald-400 font-mono break-all select-all flex items-center justify-between">
+                      <code>sudo curl -fsSL "{typeof window !== 'undefined' ? window.location.origin : 'https://ais-pre-ha7czbqgcwdqrtd6wm77nr-928008285049.europe-west2.run.app'}/api/fedora-bot/marketsense_bot.py" -o /opt/marketsense-bot/marketsense_bot.py</code>
+                      <button
+                        onClick={() => handleCopy(`sudo curl -fsSL "${typeof window !== 'undefined' ? window.location.origin : 'https://ais-pre-ha7czbqgcwdqrtd6wm77nr-928008285049.europe-west2.run.app'}/api/fedora-bot/marketsense_bot.py" -o /opt/marketsense-bot/marketsense_bot.py`)}
+                        className="text-slate-300 hover:text-white p-1 shrink-0 ml-2"
+                        title="Copiar"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <span className="text-slate-600 text-[10px] block">
+                      O entra a <code>sudo nano /opt/marketsense-bot/marketsense_bot.py</code>, borra la línea 6 y guarda con <code>Ctrl + O</code>, <code>Enter</code> y <code>Ctrl + X</code>.
+                    </span>
                   </div>
                 </div>
 

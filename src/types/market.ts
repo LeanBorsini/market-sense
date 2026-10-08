@@ -5,7 +5,7 @@ import { AsymmetryVisualMetrics } from '../components/AsymmetryVisualizer';
 /**
  * Navigation tabs available across the MarketSense terminal.
  */
-export type ActiveSection = 'watchlist' | 'impact' | 'radar_gems' | 'events_opportunities' | 'lab';
+export type ActiveSection = 'watchlist' | 'impact' | 'radar_gems' | 'events_opportunities' | 'lab' | 'fedora_bot';
 
 /**
  * Editorial Typography Theme Options:

@@ -25,6 +25,7 @@ MarketSense es una terminal de inteligencia financiera fundamental diseñada par
 ```
 /
 ├── ARCHITECTURE.md                 # [ESTE ARCHIVO] Manual de arquitectura y estándares
+├── PLAN_ETAPA_2_TRADING_AUTONOMO.md # Plan de trading autónomo 24/7 (CFDs/MT5/Fondeo sin futuros)
 ├── package.json                    # Dependencias y scripts de construcción
 ├── vite.config.ts                  # Configuración de empaquetado Vite + PWA
 ├── index.html                      # Punto de entrada HTML con metaetiquetas SEO y viewport

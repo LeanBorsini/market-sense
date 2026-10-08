@@ -35,6 +35,7 @@ import { MacroImpactView } from './components/views/MacroImpactView';
 import { RadarOpportunitiesView } from './components/views/RadarOpportunitiesView';
 import { CalendarView } from './components/views/CalendarView';
 import { LabView } from './components/views/LabView';
+import { FedoraBotView } from './components/views/FedoraBotView';
 import { AuditModal } from './components/modals/AuditModal';
 import { TradingViewModal } from './components/modals/TradingViewModal';
 import { ActiveSection, LiveQuote, LiveQuotesMap, RadarGemFilter } from './types/market';
@@ -505,6 +506,10 @@ export default function App() {
 
         {activeSection === 'lab' && (
           <LabView onOpenChart={setSelectedChartAsset} />
+        )}
+
+        {activeSection === 'fedora_bot' && (
+          <FedoraBotView />
         )}
       </main>
 

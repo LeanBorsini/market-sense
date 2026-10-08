@@ -16,7 +16,8 @@ import {
   HelpCircle, 
   Sparkles, 
   Globe,
-  FlaskConical
+  FlaskConical,
+  HardDrive
 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { ActiveSection } from '../types/market';
@@ -200,6 +201,22 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <FlaskConical className="w-4 h-4 text-teal-700" />
               <span>Laboratorio & Simulación</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection('fedora_bot')}
+              className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                activeSection === 'fedora_bot'
+                  ? 'bg-white text-blue-900 font-bold border border-[#DDD8CD] shadow-xs'
+                  : 'text-slate-600 hover:text-[#191C21]'
+              }`}
+            >
+              <HardDrive className="w-4 h-4 text-blue-600" />
+              <span>Bot Autónomo Fedora</span>
+              <span className="text-[10px] px-1 py-0.2 rounded bg-blue-100 text-blue-800 font-mono font-bold">
+                Linux
+              </span>
             </button>
           </nav>
         </div>

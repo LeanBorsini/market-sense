@@ -1,0 +1,23 @@
+[Unit]
+Description=MarketSense Autonomous Trading Daemon (Fedora Minimal)
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%I
+WorkingDirectory=/opt/marketsense-bot
+ExecStart=/usr/bin/python3 /opt/marketsense-bot/marketsense_bot.py
+Restart=always
+RestartSec=5
+Nice=10
+CPUSchedulingPolicy=other
+StandardOutput=journal
+StandardError=journal
+
+# Hardening / Minimal resource restrictions
+LimitNOFILE=65536
+MemoryMax=150M
+
+[Install]
+WantedBy=multi-user.target

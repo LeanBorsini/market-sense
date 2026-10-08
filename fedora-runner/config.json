@@ -1,0 +1,59 @@
+{
+  "bot_name": "MarketSense Fedora Minimal Engine",
+  "version": "1.0.0",
+  "execution_mode": "paper_trading",
+  "port": 8080,
+  "currency": "EUR",
+  "initial_capital": 500.0,
+  "max_daily_drawdown_eur": 35.0,
+  "max_open_trades_total": 2,
+  "electricity_saver": {
+    "enabled": true,
+    "notes": "Tarifa Irlanda ~0.39 €/kWh. Solo opera en horas de alta liquidez para minimizar consumo.",
+    "active_days": [0, 1, 2, 3, 4],
+    "active_hours_utc": {
+      "start": "13:00",
+      "end": "17:30"
+    },
+    "sleep_outside_hours": true
+  },
+  "strategies": [
+    {
+      "id": "voo_pullback_sma",
+      "symbol": "VOO",
+      "display_name": "Vanguard S&P 500 (US500)",
+      "enabled": true,
+      "lot_size": 0.01,
+      "fixed_risk_eur": 15.0,
+      "direction": "BUY_ONLY",
+      "entry_zone_min": 578.0,
+      "entry_zone_max": 586.0,
+      "stop_loss_pips": 45,
+      "take_profit_pips": 110,
+      "break_even_trigger_pips": 40,
+      "trailing_stop": true,
+      "max_spread_pips": 3.0
+    },
+    {
+      "id": "xau_sovereign_demand",
+      "symbol": "XAUUSD",
+      "display_name": "Oro Spot (Gold / USD)",
+      "enabled": true,
+      "lot_size": 0.01,
+      "fixed_risk_eur": 18.0,
+      "direction": "BUY_ONLY",
+      "entry_zone_min": 2640.0,
+      "entry_zone_max": 2665.0,
+      "stop_loss_pips": 120,
+      "take_profit_pips": 280,
+      "break_even_trigger_pips": 80,
+      "trailing_stop": true,
+      "max_spread_pips": 5.0
+    }
+  ],
+  "broker_bridge": {
+    "provider": "metatrader5_or_webhook",
+    "webhook_url": "http://127.0.0.1:5000/webhook",
+    "webhook_secret": "marketsense_fedora_secret_key"
+  }
+}

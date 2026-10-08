@@ -17,6 +17,14 @@
     },
     "sleep_outside_hours": true
   },
+  "account": {
+    "mode": "demo_broker",
+    "broker_platform": "MetaTrader 5 Demo",
+    "login": 51294821,
+    "password": "demo_password_123",
+    "server": "MetaQuotes-Demo",
+    "notes": "Tu cuenta de prueba sin riesgo. Puedes usar MT5 Demo, IC Markets, FTMO Demo o Paper Trading."
+  },
   "strategies": [
     {
       "id": "voo_pullback_sma200",

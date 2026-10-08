@@ -46,6 +46,15 @@ class TradingBotState:
         }
         self.logs = []
         self.log("Daemon iniciado correctamente en Linux Fedora Minimal.")
+        acct = self.config.get("account", {})
+        if acct:
+            mode_desc = acct.get("mode", "paper_trading").upper()
+            broker_name = acct.get("broker_platform", "MetaTrader 5 Demo")
+            login_id = acct.get("login", "No asignado")
+            server_name = acct.get("server", "Demo Server")
+            self.log(f"[{mode_desc}] Cuenta vinculada: {broker_name} | Login: {login_id} | Servidor: {server_name}")
+        else:
+            self.log("[PAPER_TRADING] Modo de simulación pura activo (Sin riesgo).")
 
     def log(self, message: str):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

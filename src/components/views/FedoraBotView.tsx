@@ -28,6 +28,8 @@ interface StrategySetting {
   id: string;
   symbol: string;
   name: string;
+  triggerType: string;
+  triggerDescription: string;
   enabled: boolean;
   lotSize: number;
   fixedRiskEur: number;
@@ -48,20 +50,50 @@ export const FedoraBotView: React.FC = () => {
 
   const [strategies, setStrategies] = useState<StrategySetting[]>([
     {
-      id: 'voo',
+      id: 'voo_pullback_sma200',
       symbol: 'VOO',
-      name: 'Vanguard S&P 500 (US500)',
+      name: 'S&P 500 — Pullback SMA 200 (Rebote)',
+      triggerType: 'zone_pullback',
+      triggerDescription: 'Entra cuando el índice retrocede al soporte de la media de 200 sesiones (zona 578 - 586 $)',
       enabled: true,
       lotSize: 0.01,
       fixedRiskEur: 15.0,
       slPips: 45,
       tpPips: 110,
-      breakEvenPips: 40
+      breakEvenPips: 35
     },
     {
-      id: 'xau',
+      id: 'voo_vix_panic_flush',
+      symbol: 'VOO',
+      name: 'S&P 500 — Barrido de Pánico VIX',
+      triggerType: 'liquidity_flush',
+      triggerDescription: 'Entra si hay capitulación masiva o spike de volatilidad en apertura (zona 565 - 577 $)',
+      enabled: true,
+      lotSize: 0.02,
+      fixedRiskEur: 20.0,
+      slPips: 65,
+      tpPips: 180,
+      breakEvenPips: 50
+    },
+    {
+      id: 'voo_breakout_ath_retest',
+      symbol: 'VOO',
+      name: 'S&P 500 — Breakout & Retest ATH',
+      triggerType: 'breakout_retest',
+      triggerDescription: 'Entra tras romper máximos históricos y testear el techo convertido en suelo (zona 588 - 594 $)',
+      enabled: true,
+      lotSize: 0.01,
+      fixedRiskEur: 12.0,
+      slPips: 35,
+      tpPips: 85,
+      breakEvenPips: 30
+    },
+    {
+      id: 'xau_sovereign_demand',
       symbol: 'XAUUSD',
       name: 'Oro Spot (Gold / USD)',
+      triggerType: 'central_bank_bid',
+      triggerDescription: 'Compras institucionales continuas por demanda de reservas en rango 2640 - 2665 $',
       enabled: true,
       lotSize: 0.01,
       fixedRiskEur: 18.0,
@@ -559,10 +591,13 @@ sudo powertop --auto-tune`
                 />
                 <div>
                   <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                    <span>{strat.symbol}</span>
-                    <span className="text-slate-500 font-normal">({strat.name})</span>
+                    <span className="px-2 py-0.5 rounded bg-slate-200 font-mono text-[10px] text-slate-800">{strat.symbol}</span>
+                    <span>{strat.name}</span>
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
+                  <div className="text-[11px] text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200/60 mt-1 font-medium">
+                    🎯 Condición de entrada: {strat.triggerDescription}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-1">
                     Stop Loss: {strat.slPips} pips · Take Profit: {strat.tpPips} pips · Trailing Stop a {strat.breakEvenPips} pips
                   </div>
                 </div>

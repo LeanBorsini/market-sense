@@ -218,17 +218,20 @@ class TradingBotState:
                     if not strat.get("enabled", True):
                         continue
                     sym = strat.get("symbol")
-                    if any(t["symbol"] == sym for t in self.open_trades):
-                        continue  # One trade per symbol
+                    # If multiple strategies exist for the same symbol (e.g. S&P500), check if there is already an open position for this specific strategy
+                    existing_trade_for_strat = any(t.get("strategy_id") == strat.get("id") for t in self.open_trades)
+                    if existing_trade_for_strat:
+                        continue  # Already has an active trade for this specific strategy
 
                     cur_price = self.last_tick_prices.get(sym, 0)
                     z_min = strat.get("entry_zone_min", 0)
                     z_max = strat.get("entry_zone_max", 999999)
+                    trigger_mode = strat.get("trigger_type", "zone_pullback")
 
-                    # Strategy entry trigger: Price is resting inside fundamental entry zone
+                    # Strategy entry trigger: Price is resting inside fundamental entry zone or trigger met
                     if z_min <= cur_price <= z_max:
-                        # 20% random entry trigger when inside zone to simulate signal confirmation
-                        if random.random() < 0.20:
+                        # Signal confirmation simulation
+                        if random.random() < 0.25:
                             direction = "BUY" if strat.get("direction") == "BUY_ONLY" else "SELL"
                             sl_pips = strat.get("stop_loss_pips", 50)
                             tp_pips = strat.get("take_profit_pips", 100)
@@ -236,11 +239,14 @@ class TradingBotState:
 
                             sl_price = round(cur_price - (sl_pips * pip_multiplier), 2)
                             tp_price = round(cur_price + (tp_pips * pip_multiplier), 2)
+                            strat_title = strat.get("display_name", strat.get("id"))
 
                             new_trade = {
                                 "id": f"trade-{int(time.time())}-{random.randint(100, 999)}",
                                 "symbol": sym,
                                 "strategy_id": strat.get("id"),
+                                "strategy_name": strat_title,
+                                "trigger_type": trigger_mode,
                                 "direction": direction,
                                 "lot_size": strat.get("lot_size", 0.01),
                                 "entry_price": cur_price,
@@ -254,7 +260,7 @@ class TradingBotState:
                                 "current_price": cur_price
                             }
                             self.open_trades.append(new_trade)
-                            self.log(f"[{sym}] 🚀 NUEVA ORDEN EJECUTADA: {direction} @ {cur_price} (SL: {sl_price} | TP: {tp_price})")
+                            self.log(f"[{sym}] 🚀 SELECCIONADA ESTRATEGIA: '{strat_title}' | Ejecutada orden {direction} @ {cur_price} (SL: {sl_price} | TP: {tp_price})")
                             break
 
 

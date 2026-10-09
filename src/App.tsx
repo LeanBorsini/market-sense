@@ -36,6 +36,7 @@ import { RadarOpportunitiesView } from './components/views/RadarOpportunitiesVie
 import { CalendarView } from './components/views/CalendarView';
 import { LabView } from './components/views/LabView';
 import { CloudTradingDeskView } from './components/views/CloudTradingDeskView';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AuditModal } from './components/modals/AuditModal';
 import { TradingViewModal } from './components/modals/TradingViewModal';
 import { ActiveSection, LiveQuote, LiveQuotesMap, RadarGemFilter } from './types/market';
@@ -509,7 +510,9 @@ export default function App() {
         )}
 
         {activeSection === 'fedora_bot' && (
-          <CloudTradingDeskView />
+          <ErrorBoundary fallbackTitle="Centro de Mando del Bot en la Nube 24/7">
+            <CloudTradingDeskView />
+          </ErrorBoundary>
         )}
       </main>
 

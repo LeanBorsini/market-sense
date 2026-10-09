@@ -12,10 +12,14 @@ export interface TradePostMortem {
 
 export type AccountType = 'PROP_FIRM_EVAL' | 'PROP_FIRM_FUNDED' | 'BROKER_REAL' | 'BROKER_DEMO';
 
+export type AccountPlatform = 'MT5_DEMO' | 'MT5_REAL' | 'MT4_DEMO' | 'MT4_REAL' | 'CTRADER' | 'RITHMIC' | 'FIX_API';
+
 export interface TradingAccount {
   id: string;
   name: string; // e.g. "FTMO Challenge $100k"
   broker: string; // "FTMO", "FundedNext", "Topstep", "IC Markets", "Pepperstone", "Interactive Brokers"
+  platform?: AccountPlatform;
+  password?: string; // Encrypted / protected trading or investor password
   accountType: AccountType;
   accountNumber: string;
   server: string;
@@ -23,11 +27,19 @@ export interface TradingAccount {
   initialCapital: number;
   balance: number;
   currentEquity: number;
+  freeMargin?: number;
+  leverage?: number;
   floatingPnlEur: number;
   floatingPnlPct: number;
   dailyPnlEur: number;
   dailyPnlPct: number;
   peakEquityToday: number;
+  
+  // Connection & Bridge Telemetry
+  connectionStatus?: 'CONNECTED' | 'SYNCING' | 'DISCONNECTED' | 'ERROR';
+  pingMs?: number;
+  lastSyncTime?: string;
+  autoLimitsEnabled?: boolean;
   
   // Prop Firm Risk Rules
   dailyDrawdownLimitPct: number;

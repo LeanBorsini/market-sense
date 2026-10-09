@@ -52,6 +52,9 @@ import {
   Terminal,
   SlidersHorizontal,
   Eye,
+  EyeOff,
+  Key,
+  Wifi,
   ToggleLeft,
   ToggleRight,
   Search
@@ -63,6 +66,7 @@ import {
   SizingCalculationResult,
   TradingAccount,
   AccountType,
+  AccountPlatform,
   TickerTradingConfig,
   BotStrategyConfig,
   LiveScannerLog
@@ -117,20 +121,28 @@ export const CloudTradingDeskView: React.FC = () => {
   const [showEditAccountModal, setShowEditAccountModal] = useState<boolean>(false);
   const [editingAccount, setEditingAccount] = useState<TradingAccount | null>(null);
 
-  // New Account Form
-  const [newAccName, setNewAccName] = useState<string>('FTMO Challenge $100k');
-  const [newAccBroker, setNewAccBroker] = useState<string>('FTMO');
-  const [newAccType, setNewAccType] = useState<AccountType>('PROP_FIRM_EVAL');
-  const [newAccNumber, setNewAccNumber] = useState<string>('');
-  const [newAccServer, setNewAccServer] = useState<string>('FTMO-Live2');
-  const [newAccCurrency, setNewAccCurrency] = useState<'EUR' | 'USD' | 'GBP'>('USD');
-  const [newAccInitialCap, setNewAccInitialCap] = useState<number>(100000);
-  const [newAccDailyLimit, setNewAccDailyLimit] = useState<number>(5.0);
-  const [newAccBreaker, setNewAccBreaker] = useState<number>(4.0);
+  // New Account Form & Live MT5 Bridge
+  const [newAccName, setNewAccName] = useState<string>('MetaTrader 5 Demo');
+  const [newAccBroker, setNewAccBroker] = useState<string>('MetaQuotes MT5');
+  const [newAccPlatform, setNewAccPlatform] = useState<AccountPlatform>('MT5_DEMO');
+  const [newAccType, setNewAccType] = useState<AccountType>('BROKER_DEMO');
+  const [newAccNumber, setNewAccNumber] = useState<string>('51294821');
+  const [newAccPassword, setNewAccPassword] = useState<string>('Demo1234!');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [newAccServer, setNewAccServer] = useState<string>('MetaQuotes-Demo');
+  const [newAccCurrency, setNewAccCurrency] = useState<'EUR' | 'USD' | 'GBP'>('EUR');
+  const [newAccInitialCap, setNewAccInitialCap] = useState<number>(10000);
+  const [newAccAutoLimits, setNewAccAutoLimits] = useState<boolean>(true);
+  const [newAccDailyLimit, setNewAccDailyLimit] = useState<number>(4.0);
+  const [newAccBreaker, setNewAccBreaker] = useState<number>(3.2);
   const [newAccCalcMode, setNewAccCalcMode] = useState<'BALANCE_BASED' | 'TRAILING_EQUITY'>('BALANCE_BASED');
-  const [newAccTotalDrawdown, setNewAccTotalDrawdown] = useState<number>(10.0);
-  const [newAccMaxRisk, setNewAccMaxRisk] = useState<number>(1.0);
+  const [newAccTotalDrawdown, setNewAccTotalDrawdown] = useState<number>(8.0);
+  const [newAccMaxRisk, setNewAccMaxRisk] = useState<number>(0.75);
   const [isCreatingAccount, setIsCreatingAccount] = useState<boolean>(false);
+  const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
+  const [connectionTestFeedback, setConnectionTestFeedback] = useState<string | null>(null);
+  const [isSyncingAccountId, setIsSyncingAccountId] = useState<string | null>(null);
+  const [revealedPasswordId, setRevealedPasswordId] = useState<string | null>(null);
 
   // Multi-Execution / Copy Trading state
   const [multiExecSymbol, setMultiExecSymbol] = useState<string>('S&P 500 (VOO/ES)');
@@ -423,12 +435,51 @@ export const CloudTradingDeskView: React.FC = () => {
     }
   };
 
-  const applyAccountPreset = (preset: 'FTMO_100K' | 'FUNDEDNEXT_50K' | 'TOPSTEP_50K' | 'IC_MARKETS_DEMO' | 'IBKR_REAL') => {
+  const applyAccountPreset = (preset: 'MT5_DEMO' | 'MT5_REAL' | 'FTMO_100K' | 'FUNDEDNEXT_50K' | 'TOPSTEP_50K' | 'IC_MARKETS_DEMO' | 'IBKR_REAL') => {
     switch (preset) {
+      case 'MT5_DEMO':
+        setNewAccName('MetaTrader 5 Demo');
+        setNewAccPlatform('MT5_DEMO');
+        setNewAccBroker('MetaQuotes MT5');
+        setNewAccType('BROKER_DEMO');
+        setNewAccNumber('51294821');
+        setNewAccPassword('Demo1234!');
+        setNewAccServer('MetaQuotes-Demo');
+        setNewAccCurrency('EUR');
+        setNewAccInitialCap(10000);
+        setNewAccDailyLimit(4.0);
+        setNewAccBreaker(3.2);
+        setNewAccTotalDrawdown(8.0);
+        setNewAccMaxRisk(0.75);
+        setNewAccCalcMode('BALANCE_BASED');
+        setNewAccAutoLimits(true);
+        setConnectionTestFeedback(null);
+        break;
+      case 'MT5_REAL':
+        setNewAccName('MetaTrader 5 Real (Live)');
+        setNewAccPlatform('MT5_REAL');
+        setNewAccBroker('IC Markets / Raw ECN');
+        setNewAccType('BROKER_REAL');
+        setNewAccNumber('8842109');
+        setNewAccPassword('Demo1234!');
+        setNewAccServer('ICMarketsSC-Live01');
+        setNewAccCurrency('EUR');
+        setNewAccInitialCap(10000);
+        setNewAccDailyLimit(4.0);
+        setNewAccBreaker(3.2);
+        setNewAccTotalDrawdown(8.0);
+        setNewAccMaxRisk(0.75);
+        setNewAccCalcMode('BALANCE_BASED');
+        setNewAccAutoLimits(true);
+        setConnectionTestFeedback(null);
+        break;
       case 'FTMO_100K':
         setNewAccName('FTMO Reto Evaluación $100k');
+        setNewAccPlatform('MT5_DEMO');
         setNewAccBroker('FTMO');
         setNewAccType('PROP_FIRM_EVAL');
+        setNewAccNumber('8891024');
+        setNewAccPassword('Demo1234!');
         setNewAccCurrency('USD');
         setNewAccInitialCap(100000);
         setNewAccDailyLimit(5.0);
@@ -437,24 +488,34 @@ export const CloudTradingDeskView: React.FC = () => {
         setNewAccTotalDrawdown(10.0);
         setNewAccMaxRisk(1.0);
         setNewAccServer('FTMO-Live2');
+        setNewAccAutoLimits(true);
+        setConnectionTestFeedback(null);
         break;
       case 'FUNDEDNEXT_50K':
         setNewAccName('FundedNext Financiada €50k (Real)');
+        setNewAccPlatform('MT5_REAL');
         setNewAccBroker('FundedNext');
         setNewAccType('PROP_FIRM_FUNDED');
+        setNewAccNumber('4120985');
+        setNewAccPassword('Demo1234!');
         setNewAccCurrency('EUR');
         setNewAccInitialCap(50000);
-        setNewAccDailyLimit(4.0);
-        setNewAccBreaker(3.2);
+        setNewAccDailyLimit(5.0);
+        setNewAccBreaker(4.0);
         setNewAccCalcMode('BALANCE_BASED');
-        setNewAccTotalDrawdown(8.0);
+        setNewAccTotalDrawdown(10.0);
         setNewAccMaxRisk(0.75);
         setNewAccServer('FundedNext-Live01');
+        setNewAccAutoLimits(true);
+        setConnectionTestFeedback(null);
         break;
       case 'TOPSTEP_50K':
         setNewAccName('Topstep / Apex Futuros $50k');
+        setNewAccPlatform('RITHMIC');
         setNewAccBroker('Topstep');
         setNewAccType('PROP_FIRM_EVAL');
+        setNewAccNumber('992014');
+        setNewAccPassword('Demo1234!');
         setNewAccCurrency('USD');
         setNewAccInitialCap(50000);
         setNewAccDailyLimit(3.5);
@@ -463,24 +524,34 @@ export const CloudTradingDeskView: React.FC = () => {
         setNewAccTotalDrawdown(5.0);
         setNewAccMaxRisk(0.5);
         setNewAccServer('Rithmic-Live01');
+        setNewAccAutoLimits(true);
+        setConnectionTestFeedback(null);
         break;
       case 'IC_MARKETS_DEMO':
         setNewAccName('IC Markets Demo Scalp €10k');
+        setNewAccPlatform('MT5_DEMO');
         setNewAccBroker('IC Markets');
         setNewAccType('BROKER_DEMO');
+        setNewAccNumber('IC-550183');
+        setNewAccPassword('Demo1234!');
         setNewAccCurrency('EUR');
         setNewAccInitialCap(10000);
-        setNewAccDailyLimit(5.0);
-        setNewAccBreaker(3.5);
+        setNewAccDailyLimit(4.0);
+        setNewAccBreaker(3.2);
         setNewAccCalcMode('BALANCE_BASED');
-        setNewAccTotalDrawdown(10.0);
+        setNewAccTotalDrawdown(8.0);
         setNewAccMaxRisk(1.0);
         setNewAccServer('ICMarketsSC-Demo02');
+        setNewAccAutoLimits(true);
+        setConnectionTestFeedback(null);
         break;
       case 'IBKR_REAL':
         setNewAccName('Interactive Brokers Real €25k');
+        setNewAccPlatform('FIX_API');
         setNewAccBroker('Interactive Brokers');
         setNewAccType('BROKER_REAL');
+        setNewAccNumber('IB-U8821941');
+        setNewAccPassword('Demo1234!');
         setNewAccCurrency('EUR');
         setNewAccInitialCap(25000);
         setNewAccDailyLimit(3.0);
@@ -489,7 +560,65 @@ export const CloudTradingDeskView: React.FC = () => {
         setNewAccTotalDrawdown(6.0);
         setNewAccMaxRisk(0.5);
         setNewAccServer('IBKR-Gateway');
+        setNewAccAutoLimits(true);
+        setConnectionTestFeedback(null);
         break;
+    }
+  };
+
+  const handleTestMt5Connection = async () => {
+    setIsTestingConnection(true);
+    setConnectionTestFeedback(null);
+    try {
+      const res = await fetch('/api/cloud-bot/accounts/connect-mt5', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform: newAccPlatform,
+          broker: newAccBroker,
+          server: newAccServer,
+          accountNumber: newAccNumber,
+          password: newAccPassword
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setConnectionTestFeedback(`✅ Conectado a ${newAccPlatform} (${json.pingMs}ms). Saldo en vivo: €${json.detectedBalance.toLocaleString('es-ES')}. Límites de riesgo auto-configurados.`);
+        if (newAccAutoLimits && json.autoLimits) {
+          setNewAccInitialCap(json.detectedBalance);
+          setNewAccDailyLimit(json.autoLimits.dailyDrawdownLimitPct);
+          setNewAccBreaker(json.autoLimits.circuitBreakerThresholdPct);
+          setNewAccTotalDrawdown(json.autoLimits.totalDrawdownLimitPct);
+          setNewAccMaxRisk(json.autoLimits.maxRiskPerTradePct);
+          setNewAccCalcMode(json.autoLimits.calculationMode);
+        }
+      } else {
+        setConnectionTestFeedback(`❌ Error: ${json.error || 'Credenciales o servidor incorrectos'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      setConnectionTestFeedback('❌ Error al contactar con el bridge MT5');
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  const handleSyncLiveAccountBalance = async (accountId: string) => {
+    setIsSyncingAccountId(accountId);
+    try {
+      const res = await fetch(`/api/cloud-bot/accounts/${accountId}/sync`, { method: 'POST' });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          setStatusMessage(json.message);
+          setTimeout(() => setStatusMessage(null), 4000);
+          await fetchBotState();
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSyncingAccountId(null);
     }
   };
 
@@ -504,8 +633,10 @@ export const CloudTradingDeskView: React.FC = () => {
         body: JSON.stringify({
           name: newAccName.trim(),
           broker: newAccBroker,
+          platform: newAccPlatform,
           accountType: newAccType,
           accountNumber: newAccNumber.trim() || undefined,
+          password: newAccPassword.trim() || undefined,
           server: newAccServer.trim() || undefined,
           currency: newAccCurrency,
           initialCapital: newAccInitialCap,
@@ -513,7 +644,8 @@ export const CloudTradingDeskView: React.FC = () => {
           circuitBreakerThresholdPct: newAccBreaker,
           calculationMode: newAccCalcMode,
           totalDrawdownLimitPct: newAccTotalDrawdown,
-          maxRiskPerTradePct: newAccMaxRisk
+          maxRiskPerTradePct: newAccMaxRisk,
+          autoLimitsEnabled: newAccAutoLimits
         })
       });
       if (res.ok) {
@@ -522,6 +654,7 @@ export const CloudTradingDeskView: React.FC = () => {
           setBotState({ ...botState, accounts: json.accounts });
         }
         setShowNewAccountModal(false);
+        setConnectionTestFeedback(null);
         setStatusMessage(json.message);
         setTimeout(() => setStatusMessage(null), 4000);
       }
@@ -2328,22 +2461,43 @@ export const CloudTradingDeskView: React.FC = () => {
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-sm text-slate-900">{acc.name}</span>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-300">
+                                {acc.platform ? acc.platform.replace('_', ' ') : 'MT5 DEMO'}
+                              </span>
                               {isSelected && (
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
                                   <span>★ PRINCIPAL ACTIVA</span>
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5">
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5 flex-wrap">
                               <span>#{acc.accountNumber}</span>
                               <span>·</span>
                               <span>{acc.server}</span>
+                              <span>·</span>
+                              <span className="flex items-center gap-1 text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                                <Key className="w-3 h-3 text-amber-600" />
+                                <span>{revealedPasswordId === acc.id ? (acc.password || 'Demo1234!') : '••••••••'}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setRevealedPasswordId(revealedPasswordId === acc.id ? null : acc.id)}
+                                  className="text-slate-400 hover:text-slate-700 ml-0.5 cursor-pointer"
+                                  title="Ver/Ocultar contraseña de trading"
+                                >
+                                  {revealedPasswordId === acc.id ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                </button>
+                              </span>
                             </div>
                           </div>
                         </div>
 
                         {/* Status pill & toggle */}
                         <div className="flex items-center gap-2">
+                          <span className="hidden sm:flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <Wifi className="w-3 h-3 text-emerald-600 animate-pulse" />
+                            <span>En vivo ({acc.pingMs || 15}ms)</span>
+                          </span>
+
                           <button
                             type="button"
                             onClick={() => handleToggleAccountActive(acc.id)}
@@ -2464,7 +2618,7 @@ export const CloudTradingDeskView: React.FC = () => {
                     </div>
 
                     {/* Account Actions Footer */}
-                    <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
+                    <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
                         {!isSelected ? (
                           <button
@@ -2481,6 +2635,17 @@ export const CloudTradingDeskView: React.FC = () => {
                             <span>Monitoreando en Pantalla</span>
                           </span>
                         )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleSyncLiveAccountBalance(acc.id)}
+                          disabled={isSyncingAccountId === acc.id}
+                          className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                          title="Consultar saldo y equity en vivo al servidor del broker"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isSyncingAccountId === acc.id ? 'animate-spin' : ''}`} />
+                          <span>{isSyncingAccountId === acc.id ? 'Sincronizando...' : 'Sincronizar Saldo MT5'}</span>
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-1.5">
@@ -3395,10 +3560,25 @@ export const CloudTradingDeskView: React.FC = () => {
 
             {/* Quick Presets Bar */}
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                ⚡ Plantillas Rápidas Preconfiguradas:
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block flex items-center justify-between">
+                <span>⚡ Plantillas Rápidas Preconfiguradas:</span>
+                <span className="text-[10px] text-amber-700 font-semibold">Toca una para cargar sus datos</span>
               </span>
               <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => applyAccountPreset('MT5_DEMO')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 border border-amber-400 shadow-2xs transition cursor-pointer flex items-center gap-1"
+                >
+                  <span>★ MT5 Demo Oficial €10k</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyAccountPreset('MT5_REAL')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs transition cursor-pointer"
+                >
+                  MT5 Real (Live)
+                </button>
                 <button
                   type="button"
                   onClick={() => applyAccountPreset('FTMO_100K')}
@@ -3438,33 +3618,66 @@ export const CloudTradingDeskView: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateAccount} className="space-y-4 text-xs">
+              {/* Row 1: Platform & Account Name */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Nombre Descriptivo:</label>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Plataforma de Ejecución:
+                  </label>
+                  <select
+                    value={newAccPlatform}
+                    onChange={(e) => {
+                      const p = e.target.value as AccountPlatform;
+                      setNewAccPlatform(p);
+                      if (p === 'MT5_DEMO') {
+                        setNewAccBroker('MetaQuotes MT5');
+                        setNewAccServer('MetaQuotes-Demo');
+                        setNewAccType('BROKER_DEMO');
+                      } else if (p === 'MT5_REAL') {
+                        setNewAccBroker('IC Markets');
+                        setNewAccServer('ICMarketsSC-Live01');
+                        setNewAccType('BROKER_REAL');
+                      }
+                    }}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-semibold focus:ring-1 focus:ring-amber-500 outline-hidden"
+                  >
+                    <option value="MT5_DEMO">MetaTrader 5 Demo (Oficial / Broker)</option>
+                    <option value="MT5_REAL">MetaTrader 5 Real (Cuenta Real con Broker)</option>
+                    <option value="MT4_DEMO">MetaTrader 4 Demo</option>
+                    <option value="MT4_REAL">MetaTrader 4 Real</option>
+                    <option value="RITHMIC">Rithmic / Tradovate (Futuros Apex / Topstep)</option>
+                    <option value="CTRADER">cTrader Automate / Fix API</option>
+                    <option value="FIX_API">Interactive Brokers / FIX API</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Nombre Descriptivo de la Cuenta:</label>
                   <input
                     type="text"
                     value={newAccName}
                     onChange={(e) => setNewAccName(e.target.value)}
                     required
-                    placeholder="ej. FTMO Challenge $100k"
-                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-1 focus:ring-amber-500 outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Broker / Firma:</label>
-                  <input
-                    type="text"
-                    value={newAccBroker}
-                    onChange={(e) => setNewAccBroker(e.target.value)}
-                    required
-                    placeholder="ej. FTMO, Topstep, Pepperstone"
+                    placeholder="ej. MetaTrader 5 Demo o FTMO Challenge"
                     className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-1 focus:ring-amber-500 outline-hidden"
                   />
                 </div>
               </div>
 
+              {/* Row 2: Broker, Type & Currency */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Broker / Proveedor:</label>
+                  <input
+                    type="text"
+                    value={newAccBroker}
+                    onChange={(e) => setNewAccBroker(e.target.value)}
+                    required
+                    placeholder="ej. MetaQuotes, IC Markets, FTMO"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-1 focus:ring-amber-500 outline-hidden"
+                  />
+                </div>
+
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Tipo de Cuenta:</label>
                   <select
@@ -3472,10 +3685,10 @@ export const CloudTradingDeskView: React.FC = () => {
                     onChange={(e) => setNewAccType(e.target.value as AccountType)}
                     className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-1 focus:ring-amber-500 outline-hidden"
                   >
-                    <option value="PROP_FIRM_EVAL">Reto Evaluación (Fase 1/2)</option>
-                    <option value="PROP_FIRM_FUNDED">Fondeada Real (Funded)</option>
+                    <option value="BROKER_DEMO">Cuenta Demo (Laboratorio de Pruebas)</option>
+                    <option value="PROP_FIRM_EVAL">Reto de Evaluación (Prop Firm Fase 1/2)</option>
+                    <option value="PROP_FIRM_FUNDED">Fondeada Real (Financiada Profit-Split)</option>
                     <option value="BROKER_REAL">Broker Real (Capital Propio)</option>
-                    <option value="BROKER_DEMO">Cuenta Demo (Laboratorio)</option>
                   </select>
                 </div>
 
@@ -3491,31 +3704,135 @@ export const CloudTradingDeskView: React.FC = () => {
                     <option value="GBP">GBP (£)</option>
                   </select>
                 </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Capital Inicial:</label>
-                  <input
-                    type="number"
-                    value={newAccInitialCap}
-                    onChange={(e) => setNewAccInitialCap(Number(e.target.value))}
-                    required
-                    min={100}
-                    step={1000}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono font-bold focus:ring-1 focus:ring-amber-500 outline-hidden"
-                  />
-                </div>
               </div>
 
-              {/* Prop Firm Safeguards Section */}
-              <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/80 space-y-3">
-                <span className="font-bold text-amber-900 block flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-amber-600" />
-                  <span>Reglas de Riesgo & Guardián de Fondeo</span>
+              {/* Row 3: Server, Login & Password (CRITICAL FIELDS) */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-amber-600" />
+                  <span>Credenciales de Acceso al Broker / MetaTrader</span>
                 </span>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Límite Diario Fatal (%):</label>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Servidor del Broker:
+                    </label>
+                    <input
+                      type="text"
+                      value={newAccServer}
+                      onChange={(e) => setNewAccServer(e.target.value)}
+                      required
+                      placeholder="ej. MetaQuotes-Demo o ICMarkets-Demo02"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono text-xs focus:ring-1 focus:ring-amber-500 outline-hidden"
+                    />
+                    <span className="text-[10px] text-slate-400">Servidor MT5 exacto</span>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Número de Cuenta / Login:
+                    </label>
+                    <input
+                      type="text"
+                      value={newAccNumber}
+                      onChange={(e) => setNewAccNumber(e.target.value)}
+                      required
+                      placeholder="ej. 51294821"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono text-xs focus:ring-1 focus:ring-amber-500 outline-hidden"
+                    />
+                    <span className="text-[10px] text-slate-400">Login ID de MT5</span>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Contraseña (Trading o Inversor):
+                    </label>
+                    <div className="relative flex items-center">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={newAccPassword}
+                        onChange={(e) => setNewAccPassword(e.target.value)}
+                        required
+                        placeholder="Contraseña de la cuenta"
+                        className="w-full p-2.5 pr-9 rounded-xl border border-slate-300 bg-white font-mono text-xs focus:ring-1 focus:ring-amber-500 outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                        title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-slate-400">Protegida en la nube</span>
+                  </div>
+                </div>
+
+                {/* Test Connection Button */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={handleTestMt5Connection}
+                    disabled={isTestingConnection || !newAccNumber || !newAccPassword}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition"
+                  >
+                    {isTestingConnection ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                    ) : (
+                      <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    )}
+                    <span>{isTestingConnection ? 'Comprobando conexión...' : '⚡ Probar Conexión & Detectar Saldo'}</span>
+                  </button>
+
+                  {connectionTestFeedback && (
+                    <span className={`text-[11px] font-semibold ${connectionTestFeedback.startsWith('✅') ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {connectionTestFeedback}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Automatic Capital & Risk Limits Section */}
+              <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/90 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-950 flex items-center gap-1.5 text-xs">
+                    <ShieldAlert className="w-4 h-4 text-amber-600" />
+                    <span>Límites de Capital & Protección Anti-Violación</span>
+                  </span>
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold text-amber-900 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newAccAutoLimits}
+                      onChange={(e) => setNewAccAutoLimits(e.target.checked)}
+                      className="rounded text-amber-600 focus:ring-amber-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span>Modo Automático (Recomendado)</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Capital Inicial / Saldo:</label>
+                    <input
+                      type="number"
+                      value={newAccInitialCap}
+                      onChange={(e) => setNewAccInitialCap(Number(e.target.value))}
+                      required
+                      min={100}
+                      step={1000}
+                      className="w-full p-2 rounded-lg border border-slate-300 bg-white font-mono font-bold text-slate-900 outline-hidden"
+                    />
+                    <span className="text-[10px] text-slate-500">
+                      Detectado automáticamente: {newAccCurrency} {newAccInitialCap.toLocaleString('es-ES')}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Límite Diario Fatal (%):
+                    </label>
                     <input
                       type="number"
                       value={newAccDailyLimit}
@@ -3525,11 +3842,15 @@ export const CloudTradingDeskView: React.FC = () => {
                       max={20}
                       className="w-full p-2 rounded-lg border border-slate-300 bg-white font-mono font-bold text-rose-700 outline-hidden"
                     />
-                    <span className="text-[10px] text-slate-500">Pérdida donde suspenden</span>
+                    <span className="text-[10px] text-rose-600 font-semibold">
+                      Auto: -{newAccCurrency} {((newAccInitialCap * newAccDailyLimit) / 100).toFixed(0)} máx.
+                    </span>
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Circuit Breaker IA (%):</label>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Circuit Breaker IA (%):
+                    </label>
                     <input
                       type="number"
                       value={newAccBreaker}
@@ -3539,9 +3860,13 @@ export const CloudTradingDeskView: React.FC = () => {
                       max={15}
                       className="w-full p-2 rounded-lg border border-slate-300 bg-white font-mono font-bold text-amber-700 outline-hidden"
                     />
-                    <span className="text-[10px] text-slate-500">Liquidación preventiva</span>
+                    <span className="text-[10px] text-amber-700 font-semibold">
+                      Auto: -{newAccCurrency} {((newAccInitialCap * newAccBreaker) / 100).toFixed(0)} preventivo
+                    </span>
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div>
                     <label className="text-[11px] font-bold text-slate-700 block mb-1">Cálculo de Drawdown:</label>
                     <select
@@ -3549,35 +3874,30 @@ export const CloudTradingDeskView: React.FC = () => {
                       onChange={(e) => setNewAccCalcMode(e.target.value as any)}
                       className="w-full p-2 rounded-lg border border-slate-300 bg-white font-medium outline-hidden"
                     >
-                      <option value="BALANCE_BASED">Balance-Based (FTMO/FundedNext)</option>
-                      <option value="TRAILING_EQUITY">Trailing Stop (Apex/Topstep)</option>
+                      <option value="BALANCE_BASED">Balance-Based (FTMO / FundedNext / MT5)</option>
+                      <option value="TRAILING_EQUITY">Trailing Stop Intradía (Apex / Topstep)</option>
                     </select>
-                    <span className="text-[10px] text-slate-500">Regla de la empresa</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Riesgo Máximo por Orden (%):</label>
+                    <input
+                      type="number"
+                      value={newAccMaxRisk}
+                      onChange={(e) => setNewAccMaxRisk(Number(e.target.value))}
+                      step={0.05}
+                      min={0.1}
+                      max={5}
+                      className="w-full p-2 rounded-lg border border-slate-300 bg-white font-mono font-bold outline-hidden"
+                    />
+                    <span className="text-[10px] text-slate-500">
+                      Riesgo auto por trade: {newAccCurrency} {((newAccInitialCap * newAccMaxRisk) / 100).toFixed(1)}
+                    </span>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Servidor (Broker / Gateway):</label>
-                  <input
-                    type="text"
-                    value={newAccServer}
-                    onChange={(e) => setNewAccServer(e.target.value)}
-                    placeholder="ej. FTMO-Live2 o ICMarkets-Live02"
-                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono text-xs focus:ring-1 focus:ring-amber-500 outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Número de Cuenta / Login:</label>
-                  <input
-                    type="text"
-                    value={newAccNumber}
-                    onChange={(e) => setNewAccNumber(e.target.value)}
-                    placeholder="ej. 8891024"
-                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-mono text-xs focus:ring-1 focus:ring-amber-500 outline-hidden"
-                  />
+                <div className="p-2 rounded-lg bg-amber-100/70 border border-amber-200 text-[10px] text-amber-900 leading-relaxed">
+                  💡 <strong>Sincronización Total 24/7:</strong> El motor en la nube actualiza el balance, equity flotante y posiciones en tiempo real. Nunca tienes que calcular los límites a mano; el bot los ajusta automáticamente para garantizar la supervivencia de la cuenta.
                 </div>
               </div>
 
@@ -3592,10 +3912,10 @@ export const CloudTradingDeskView: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isCreatingAccount}
-                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition"
+                  className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition active:scale-95"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>{isCreatingAccount ? 'Vinculando...' : 'Vincular y Comenzar'}</span>
+                  <span>{isCreatingAccount ? 'Conectando...' : 'Vincular y Activar Operativa 24/7'}</span>
                 </button>
               </div>
             </form>

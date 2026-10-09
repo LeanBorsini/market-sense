@@ -78,17 +78,20 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* Quick Actions: PWA Install, Private Desk (Owner) & User Profile */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <PWAInstallButton />
 
               {/* Private Operator Desk (Cloud Bot 24/7) */}
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setActiveSection('fedora_bot');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  if (typeof window !== 'undefined') {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
                 }}
-                className={`touch-manipulation flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition active:scale-95 shadow-2xs cursor-pointer min-h-[38px] ${
+                className={`touch-manipulation shrink-0 relative z-20 flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-bold transition active:scale-95 shadow-2xs cursor-pointer min-h-[38px] select-none ${
                   activeSection === 'fedora_bot'
                     ? 'bg-amber-500 text-slate-950 border-amber-400 ring-2 ring-amber-300 shadow-sm'
                     : 'bg-[#F2ECE1] hover:bg-[#EAE3D6] text-amber-950 border-[#DDD8CD]'
@@ -96,11 +99,11 @@ export const Header: React.FC<HeaderProps> = ({
                 title="Consola Privada del Bot en la Nube 24/7"
                 aria-label="Abrir Bot en la Nube 24/7"
               >
-                <Cloud className={`w-4 h-4 shrink-0 ${activeSection === 'fedora_bot' ? 'text-slate-950' : 'text-amber-600 animate-pulse'}`} />
-                <span className="font-bold text-[11px] sm:text-xs">
+                <Cloud className={`w-4 h-4 shrink-0 pointer-events-none ${activeSection === 'fedora_bot' ? 'text-slate-950' : 'text-amber-600 animate-pulse'}`} />
+                <span className="font-bold text-[11px] sm:text-xs pointer-events-none whitespace-nowrap">
                   {activeSection === 'fedora_bot' ? 'Bot Activo' : 'Bot 24/7'}
                 </span>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${activeSection === 'fedora_bot' ? 'bg-emerald-950' : 'bg-emerald-500 animate-ping'}`} />
+                <span className={`w-2 h-2 rounded-full shrink-0 pointer-events-none ${activeSection === 'fedora_bot' ? 'bg-emerald-950' : 'bg-emerald-500 animate-ping'}`} />
               </button>
 
               {currentUser ? (
@@ -162,19 +165,22 @@ export const Header: React.FC<HeaderProps> = ({
           <nav className="flex items-center gap-1 overflow-x-auto pb-0.5 text-xs font-medium border-t border-[#EDE8DE] pt-2">
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setActiveSection('fedora_bot');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (typeof window !== 'undefined') {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
               }}
-              className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer touch-manipulation ${
+              className={`shrink-0 px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer touch-manipulation select-none ${
                 activeSection === 'fedora_bot'
                   ? 'bg-amber-500 text-slate-950 font-bold border border-amber-400 shadow-sm ring-1 ring-amber-300'
                   : 'bg-amber-50/90 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold'
               }`}
             >
-              <Cloud className={`w-4 h-4 shrink-0 ${activeSection === 'fedora_bot' ? 'text-slate-950' : 'text-amber-600 animate-pulse'}`} />
-              <span>Bot en la Nube 24/7</span>
-              <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
+              <Cloud className={`w-4 h-4 shrink-0 pointer-events-none ${activeSection === 'fedora_bot' ? 'text-slate-950' : 'text-amber-600 animate-pulse'}`} />
+              <span className="pointer-events-none">Bot en la Nube 24/7</span>
+              <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold pointer-events-none ${
                 activeSection === 'fedora_bot' ? 'bg-slate-900 text-amber-300' : 'bg-emerald-600 text-white'
               }`}>
                 EN VIVO

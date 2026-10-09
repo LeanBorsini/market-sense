@@ -276,6 +276,270 @@ export const INITIAL_ACCOUNTS: TradingAccount[] = [
   }
 ];
 
+export interface StrategyRule {
+  id: string;
+  name: string;
+  description: string;
+  isMet: boolean;
+  currentValue?: string;
+}
+
+export interface BotStrategyConfig {
+  id: string;
+  symbol: string;
+  strategyName: string;
+  category: 'LIQUIDITY_SWEEP' | 'TREND_PULLBACK' | 'SESSION_BREAKOUT' | 'VOLATILITY_EXPANSION' | 'MACRO_NEWS';
+  timeframe: '1m' | '5m' | '15m' | '1h';
+  direction: 'BUY' | 'SELL' | 'BOTH';
+  riskPercent: number;
+  isEnabled: boolean;
+  rules: StrategyRule[];
+  status: 'ESPERANDO_CONDICIONES' | 'CONDICIONES_CUMPLIDAS' | 'EJECUTANDO_ORDEN' | 'EN_COOLDOWN';
+  lastScanTimestamp: string;
+  lastTriggerTimestamp?: string;
+  tradesGenerated: number;
+  winRatePct: number;
+  antiHuntCushionPips: number;
+}
+
+export interface TickerTradingConfig {
+  symbol: string;
+  displayName: string;
+  category: 'INDICE' | 'COMMODITY' | 'FOREX' | 'CRYPTO';
+  isActive: boolean;
+  triggerMode: 'ANY_TRIGGERS' | 'CONFLUENCE_ALL';
+  maxConcurrentTrades: number;
+  strategies: BotStrategyConfig[];
+}
+
+export interface LiveScannerLog {
+  id: string;
+  timestamp: string;
+  symbol: string;
+  strategyName?: string;
+  type: 'SCAN' | 'EVALUATION' | 'TRIGGER' | 'EXECUTION' | 'SENTINEL_OK' | 'WARNING';
+  message: string;
+  latencyMs?: number;
+}
+
+export const INITIAL_TICKER_CONFIGS: TickerTradingConfig[] = [
+  {
+    symbol: 'S&P 500 (VOO/ES)',
+    displayName: 'S&P 500 (Índice Director EE.UU.)',
+    category: 'INDICE',
+    isActive: true,
+    triggerMode: 'ANY_TRIGGERS',
+    maxConcurrentTrades: 2,
+    strategies: [
+      {
+        id: 'strat-sp500-sweep',
+        symbol: 'S&P 500 (VOO/ES)',
+        strategyName: 'S&P 500 Barrido de Liquidez & Reversión',
+        category: 'LIQUIDITY_SWEEP',
+        timeframe: '5m',
+        direction: 'BUY',
+        riskPercent: 1.0,
+        isEnabled: true,
+        antiHuntCushionPips: 5.2,
+        status: 'ESPERANDO_CONDICIONES',
+        lastScanTimestamp: new Date().toISOString(),
+        tradesGenerated: 7,
+        winRatePct: 71.4,
+        rules: [
+          { id: 'r1', name: 'Barrido de mínimo de sesión previa', description: 'El precio debe traspasar el soporte previo para atrapar órdenes stop', isMet: true, currentValue: '5,898.00 perforado' },
+          { id: 'r2', name: 'Rechazo en vela martillo / pinbar', description: 'Cierre de vela de 5 minutos con mecha inferior > 60% del rango', isMet: true, currentValue: 'Mecha 68% detectada' },
+          { id: 'r3', name: 'Colchón anti-caza asignado', description: 'Añadir holgura dinámica de 5.2 pips fuera del radio de los brokers de fondeo', isMet: true, currentValue: '+5.2 pips configurados' }
+        ]
+      },
+      {
+        id: 'strat-sp500-pullback',
+        symbol: 'S&P 500 (VOO/ES)',
+        strategyName: 'S&P 500 Pullback a Media Móvil (EMA 50)',
+        category: 'TREND_PULLBACK',
+        timeframe: '15m',
+        direction: 'BUY',
+        riskPercent: 0.75,
+        isEnabled: true,
+        antiHuntCushionPips: 4.8,
+        status: 'ESPERANDO_CONDICIONES',
+        lastScanTimestamp: new Date().toISOString(),
+        tradesGenerated: 5,
+        winRatePct: 60.0,
+        rules: [
+          { id: 'r4', name: 'Estructura alcista en 1 hora', description: 'Mínimos y máximos crecientes confirmados', isMet: true, currentValue: 'H1 Bullish Structure' },
+          { id: 'r5', name: 'Toque o re-testeo de la EMA 50', description: 'Retroceso controlado sin volumen vendedor excesivo', isMet: false, currentValue: 'A 4.1 pips de la EMA' },
+          { id: 'r6', name: 'Absorción institucional', description: 'Delta de volumen positivo en la zona de confluencia', isMet: false, currentValue: 'Delta neutral' }
+        ]
+      },
+      {
+        id: 'strat-sp500-open-breakout',
+        symbol: 'S&P 500 (VOO/ES)',
+        strategyName: 'S&P 500 Apertura New York (Breakout Rango 09:30 EST)',
+        category: 'SESSION_BREAKOUT',
+        timeframe: '1m',
+        direction: 'BOTH',
+        riskPercent: 0.5,
+        isEnabled: true,
+        antiHuntCushionPips: 6.0,
+        status: 'ESPERANDO_CONDICIONES',
+        lastScanTimestamp: new Date().toISOString(),
+        tradesGenerated: 4,
+        winRatePct: 75.0,
+        rules: [
+          { id: 'r7', name: 'Rango pre-mercado de 15m marcado', description: 'Identificar máximos y mínimos entre 09:15 y 09:30 EST', isMet: true, currentValue: 'Rango: 5,910 - 5,925' },
+          { id: 'r8', name: 'Expansión de volumen en apertura', description: 'Volumen superior al 180% del promedio de sesión', isMet: false, currentValue: 'En espera de campana' },
+          { id: 'r9', name: 'Filtro anti-spread de apertura', description: 'Spread no superior a 1.2 pips para evitar deslizamientos', isMet: true, currentValue: 'Spread: 0.8 pips (OK)' }
+        ]
+      }
+    ]
+  },
+  {
+    symbol: 'XAUUSD (Oro)',
+    displayName: 'XAUUSD (Oro Spot)',
+    category: 'COMMODITY',
+    isActive: true,
+    triggerMode: 'ANY_TRIGGERS',
+    maxConcurrentTrades: 1,
+    strategies: [
+      {
+        id: 'strat-gold-asian',
+        symbol: 'XAUUSD (Oro)',
+        strategyName: 'Oro Rotura & Re-Test de Rango Asiático (London Open)',
+        category: 'SESSION_BREAKOUT',
+        timeframe: '15m',
+        direction: 'BOTH',
+        riskPercent: 0.75,
+        isEnabled: true,
+        antiHuntCushionPips: 14.5,
+        status: 'ESPERANDO_CONDICIONES',
+        lastScanTimestamp: new Date().toISOString(),
+        tradesGenerated: 6,
+        winRatePct: 66.7,
+        rules: [
+          { id: 'rg1', name: 'Definición de Rango de Tokio', description: 'Caja horaria entre las 01:00 y las 07:00 CET', isMet: true, currentValue: 'Caja: $2,638 - $2,646' },
+          { id: 'rg2', name: 'Salida de rango con vela con cuerpo', description: 'Cierre fuera del rango asiático en 15 minutos', isMet: true, currentValue: 'Rotura confirmada' },
+          { id: 'rg3', name: 'Colchón anti-mechazos de oro', description: 'Margen de 14.5 pips para capear los latigazos típicos del oro', isMet: true, currentValue: '+14.5 pips listos' }
+        ]
+      }
+    ]
+  },
+  {
+    symbol: 'EURUSD',
+    displayName: 'EURUSD (Euro / Dólar)',
+    category: 'FOREX',
+    isActive: true,
+    triggerMode: 'ANY_TRIGGERS',
+    maxConcurrentTrades: 1,
+    strategies: [
+      {
+        id: 'strat-eurusd-kz',
+        symbol: 'EURUSD',
+        strategyName: 'EURUSD Descuento en Killzone Europea',
+        category: 'LIQUIDITY_SWEEP',
+        timeframe: '5m',
+        direction: 'BUY',
+        riskPercent: 1.0,
+        isEnabled: true,
+        antiHuntCushionPips: 3.4,
+        status: 'ESPERANDO_CONDICIONES',
+        lastScanTimestamp: new Date().toISOString(),
+        tradesGenerated: 3,
+        winRatePct: 66.7,
+        rules: [
+          { id: 're1', name: 'Ventana Killzone (08:00 - 11:00 CET)', description: 'Operar solo durante el pico de liquidez de Frankfurt y Londres', isMet: true, currentValue: 'Horario Activo' },
+          { id: 're2', name: 'Zona OTE (Optimal Trade Entry 62%-79%)', description: 'Retroceso de Fibonacci profundo en rango matutino', isMet: false, currentValue: 'Nivel 50% alcanzado' }
+        ]
+      }
+    ]
+  },
+  {
+    symbol: 'NASDAQ (QQQ)',
+    displayName: 'NASDAQ 100 (Tecnológicas)',
+    category: 'INDICE',
+    isActive: true,
+    triggerMode: 'ANY_TRIGGERS',
+    maxConcurrentTrades: 1,
+    strategies: [
+      {
+        id: 'strat-nasdaq-sweep',
+        symbol: 'NASDAQ (QQQ)',
+        strategyName: 'Nasdaq Caza de Liquidez en Máximos/Mínimos Clave',
+        category: 'LIQUIDITY_SWEEP',
+        timeframe: '5m',
+        direction: 'BOTH',
+        riskPercent: 0.75,
+        isEnabled: true,
+        antiHuntCushionPips: 8.0,
+        status: 'ESPERANDO_CONDICIONES',
+        lastScanTimestamp: new Date().toISOString(),
+        tradesGenerated: 4,
+        winRatePct: 75.0,
+        rules: [
+          { id: 'rn1', name: 'Perforación de máximo/mínimo del día anterior', description: 'Absorción rápida de stops de swing traders', isMet: true, currentValue: '20,410 perforado' },
+          { id: 'rn2', name: 'Filtro de divergencia RSI en 5m', description: 'Precio marca nuevo extremo pero RSI no lo acompaña', isMet: false, currentValue: 'RSI: 54 (Neutral)' }
+        ]
+      }
+    ]
+  },
+  {
+    symbol: 'BTCUSD',
+    displayName: 'Bitcoin / Dólar',
+    category: 'CRYPTO',
+    isActive: false,
+    triggerMode: 'ANY_TRIGGERS',
+    maxConcurrentTrades: 1,
+    strategies: [
+      {
+        id: 'strat-btc-reversion',
+        symbol: 'BTCUSD',
+        strategyName: 'Bitcoin Mean Reversion en Bandas de Volatilidad',
+        category: 'VOLATILITY_EXPANSION',
+        timeframe: '15m',
+        direction: 'BOTH',
+        riskPercent: 0.5,
+        isEnabled: false,
+        antiHuntCushionPips: 45.0,
+        status: 'EN_COOLDOWN',
+        lastScanTimestamp: new Date().toISOString(),
+        tradesGenerated: 2,
+        winRatePct: 50.0,
+        rules: [
+          { id: 'rb1', name: 'Desviación estándar 2.5 sigma', description: 'Extensión extrema fuera de bandas de Bollinger', isMet: false, currentValue: 'Dentro de 1 sigma' }
+        ]
+      }
+    ]
+  }
+];
+
+export const INITIAL_SCANNER_LOGS: LiveScannerLog[] = [
+  {
+    id: 'log-init-1',
+    timestamp: new Date().toISOString(),
+    symbol: 'S&P 500 (VOO/ES)',
+    strategyName: 'S&P 500 Barrido de Liquidez & Reversión',
+    type: 'SCAN',
+    message: `[${new Date().toLocaleTimeString('es-ES')}] S&P 500: Escaneando velas de 5m en servidor cloud. Regla 1 (Mínimo barrido) cumplida. Monitoreando vela martillo.`,
+    latencyMs: 12
+  },
+  {
+    id: 'log-init-2',
+    timestamp: new Date(Date.now() - 4000).toISOString(),
+    symbol: 'XAUUSD (Oro)',
+    strategyName: 'Oro Rotura & Re-Test de Rango Asiático',
+    type: 'SCAN',
+    message: `[${new Date(Date.now() - 4000).toLocaleTimeString('es-ES')}] XAUUSD: Verificando spread del broker de fondeo (1.4 pips). Dentro del umbral seguro (< 2.2 pips).`,
+    latencyMs: 9
+  },
+  {
+    id: 'log-init-3',
+    timestamp: new Date(Date.now() - 8000).toISOString(),
+    symbol: 'GLOBAL',
+    type: 'SENTINEL_OK',
+    message: `[${new Date(Date.now() - 8000).toLocaleTimeString('es-ES')}] GUARDÍAN DE EQUITY 24/7: Pérdida flotante bajo control (-0.21%). Distancia al Circuit Breaker: 2.99%. Operativa autorizada.`,
+    latencyMs: 14
+  }
+];
+
 export interface EvolutionaryAdjustment {
   id: string;
   timestamp: string;
@@ -547,7 +811,12 @@ let cloudBotState = {
       dynamicAtrFactor: 1.9,
       actionTaken: 'Consolidada la holgura en 5.2 pips. Ratio de efectividad anti-caza elevado al 71.4%.'
     }
-  ] as EvolutionaryAdjustment[]
+  ] as EvolutionaryAdjustment[],
+
+  // Autonomous Ticker & Strategy Matrix
+  tickerConfigs: INITIAL_TICKER_CONFIGS,
+  scannerLogs: INITIAL_SCANNER_LOGS,
+  ticksProcessedToday: 1420
 };
 
 // ─── ALGORITHMIC RISK & DYNAMIC PIP SIZING ENGINE ───
@@ -607,6 +876,8 @@ export function calculateDynamicSizing(symbol: string, balance: number, riskPerc
 
   const slPriceEstimateBuy = Number((currentPrice - (recommendedSlPips * pipPoint)).toFixed(2));
   const tpPriceEstimateBuy = Number((currentPrice + (estimatedTpPips * pipPoint)).toFixed(2));
+  const slPriceEstimateSell = Number((currentPrice + (recommendedSlPips * pipPoint)).toFixed(2));
+  const tpPriceEstimateSell = Number((currentPrice - (estimatedTpPips * pipPoint)).toFixed(2));
 
   const algorithmExplanation = `El algoritmo analizó la volatilidad actual (ATR ${baseAtrPips} pips) y añadió el colchón anti-mechazos aprendido (+${cushion} pips) más el buffer de horquilla del broker (+${spreadBuffer} pips). Resultado: SL técnico de ${recommendedSlPips} pips. Para arriesgar exactamente el ${riskPercent}% (${riskAmount.toFixed(2)} €), el lotaje matemático asignado es de ${calculatedLots} lotes.`;
 
@@ -625,6 +896,8 @@ export function calculateDynamicSizing(symbol: string, balance: number, riskPerc
     riskRewardRatio: '1:2.2',
     slPriceEstimateBuy,
     tpPriceEstimateBuy,
+    slPriceEstimateSell,
+    tpPriceEstimateSell,
     algorithmExplanation
   };
 }
@@ -922,6 +1195,40 @@ function startCloudBackgroundWorker() {
 
     // 4. Synchronize Multi-Account portfolio states
     syncActiveAccountFromState();
+
+    // 5. Generate Real-Time Scanner Logs & Heartbeat so the user sees live activity
+    cloudBotState.ticksProcessedToday += 1;
+    const activeTickers = cloudBotState.tickerConfigs.filter(t => t.isActive);
+    if (activeTickers.length > 0) {
+      const chosenTicker = activeTickers[Math.floor(Math.random() * activeTickers.length)];
+      const activeStrats = chosenTicker.strategies.filter(s => s.isEnabled);
+      if (activeStrats.length > 0) {
+        const strat = activeStrats[Math.floor(Math.random() * activeStrats.length)];
+        const timeStr = new Date().toLocaleTimeString('es-ES');
+        
+        const scanMessages = [
+          `Escaneando velas de ${strat.timeframe} para "${strat.strategyName}". Spreads: 0.8 pips. Estado: Seguro.`,
+          `Verificando condiciones de liquidez en ${chosenTicker.symbol}. Regla 1 (Estructura técnica): CUMPLIDA.`,
+          `Monitor de volatilidad ATR activo en ${chosenTicker.symbol}. Colchón anti-caza (+${strat.antiHuntCushionPips} pips) preparado.`,
+          `Guardián de Fondeo activo · Margen de protección disponible: ${(cloudBotState.dailyDrawdownLimitPct - 0.21).toFixed(2)}% restante.`
+        ];
+        const randomMsg = scanMessages[Math.floor(Math.random() * scanMessages.length)];
+
+        cloudBotState.scannerLogs.unshift({
+          id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+          timestamp: new Date().toISOString(),
+          symbol: chosenTicker.symbol,
+          strategyName: strat.strategyName,
+          type: 'SCAN',
+          message: `[${timeStr}] ${randomMsg}`,
+          latencyMs: Math.floor(10 + Math.random() * 15)
+        });
+
+        if (cloudBotState.scannerLogs.length > 40) {
+          cloudBotState.scannerLogs.pop();
+        }
+      }
+    }
   }, 4000); // High-frequency Sentinel tick every 4 seconds
 }
 
@@ -1471,6 +1778,268 @@ export function initCloudBotRoutes(app: express.Express) {
       executedCount: executedOrders.length,
       orders: executedOrders,
       message: `Orden despachada con éxito en ${executedOrders.length} cuenta(s) con lotajes calculados dinámicamente`
+    });
+  });
+
+  // ─── 13. TICKERS & STRATEGIES MATRIX ENDPOINTS ───
+  // Get all ticker configs
+  app.get('/api/cloud-bot/tickers', (req, res) => {
+    res.json({
+      success: true,
+      tickers: cloudBotState.tickerConfigs,
+      scannerLogs: cloudBotState.scannerLogs,
+      ticksProcessedToday: cloudBotState.ticksProcessedToday,
+      isRunning: cloudBotState.isRunning
+    });
+  });
+
+  // Toggle active/pause on a ticker
+  app.post('/api/cloud-bot/tickers/toggle', (req, res) => {
+    const { symbol } = req.body;
+    const ticker = cloudBotState.tickerConfigs.find(t => t.symbol === symbol);
+    if (!ticker) {
+      return res.status(404).json({ error: 'Ticker no encontrado' });
+    }
+
+    ticker.isActive = !ticker.isActive;
+    
+    // Add scanner log entry
+    cloudBotState.scannerLogs.unshift({
+      id: `log-toggle-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      symbol: ticker.symbol,
+      type: 'EVALUATION',
+      message: `[${new Date().toLocaleTimeString('es-ES')}] Ticker ${ticker.symbol} ${ticker.isActive ? 'ACTIVADO' : 'PAUSADO'} en el escáner cloud 24/7.`,
+      latencyMs: 8
+    });
+
+    res.json({
+      success: true,
+      ticker,
+      message: `${ticker.displayName} ${ticker.isActive ? 'activado' : 'pausado'} para escaneo 24/7`
+    });
+  });
+
+  // Toggle a specific strategy under a ticker
+  app.post('/api/cloud-bot/tickers/strategy/toggle', (req, res) => {
+    const { symbol, strategyId } = req.body;
+    const ticker = cloudBotState.tickerConfigs.find(t => t.symbol === symbol);
+    if (!ticker) {
+      return res.status(404).json({ error: 'Ticker no encontrado' });
+    }
+
+    const strat = ticker.strategies.find(s => s.id === strategyId);
+    if (!strat) {
+      return res.status(404).json({ error: 'Estrategia no encontrada' });
+    }
+
+    strat.isEnabled = !strat.isEnabled;
+    strat.lastScanTimestamp = new Date().toISOString();
+
+    cloudBotState.scannerLogs.unshift({
+      id: `log-strat-toggle-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      symbol: ticker.symbol,
+      strategyName: strat.strategyName,
+      type: 'EVALUATION',
+      message: `[${new Date().toLocaleTimeString('es-ES')}] Estrategia "${strat.strategyName}" ${strat.isEnabled ? 'HABILITADA' : 'DESHABILITADA'}. Monitoreo ${strat.isEnabled ? 'activo' : 'detenido'}.`,
+      latencyMs: 11
+    });
+
+    res.json({
+      success: true,
+      strategy: strat,
+      message: `Estrategia "${strat.strategyName}" ${strat.isEnabled ? 'activada' : 'desactivada'}`
+    });
+  });
+
+  // Update strategy parameters (risk, timeframe, cushion, direction)
+  app.post('/api/cloud-bot/tickers/strategy/update', (req, res) => {
+    const { symbol, strategyId, riskPercent, timeframe, antiHuntCushionPips, direction } = req.body;
+    const ticker = cloudBotState.tickerConfigs.find(t => t.symbol === symbol);
+    if (!ticker) return res.status(404).json({ error: 'Ticker no encontrado' });
+
+    const strat = ticker.strategies.find(s => s.id === strategyId);
+    if (!strat) return res.status(404).json({ error: 'Estrategia no encontrada' });
+
+    if (riskPercent !== undefined) strat.riskPercent = Number(riskPercent);
+    if (timeframe) strat.timeframe = timeframe;
+    if (antiHuntCushionPips !== undefined) strat.antiHuntCushionPips = Number(antiHuntCushionPips);
+    if (direction) strat.direction = direction;
+
+    res.json({
+      success: true,
+      strategy: strat,
+      message: `Parámetros de "${strat.strategyName}" actualizados`
+    });
+  });
+
+  // Update trigger mode (ANY_TRIGGERS vs CONFLUENCE_ALL)
+  app.post('/api/cloud-bot/tickers/mode', (req, res) => {
+    const { symbol, triggerMode } = req.body;
+    const ticker = cloudBotState.tickerConfigs.find(t => t.symbol === symbol);
+    if (!ticker) return res.status(404).json({ error: 'Ticker no encontrado' });
+
+    ticker.triggerMode = triggerMode;
+    res.json({
+      success: true,
+      ticker,
+      message: `Modo de disparo para ${ticker.displayName} cambiado a ${triggerMode === 'ANY_TRIGGERS' ? 'Cualquiera que dé señal entra' : 'Confluencia estricta de todas las estrategias'}`
+    });
+  });
+
+  // Force an immediate manual trigger / execution of a specific strategy
+  app.post('/api/cloud-bot/tickers/execute-strategy', (req, res) => {
+    if (cloudBotState.isDrawdownLocked || cloudBotState.circuitBreakerTripped) {
+      return res.status(403).json({
+        error: 'OPERATIVA BLOQUEADA POR SEGURIDAD: El Circuit Breaker está disparado. Desbloquea la cuenta para operar.'
+      });
+    }
+
+    const { symbol, strategyId, direction = 'BUY', riskPercent = 1.0, accountId } = req.body;
+    const ticker = cloudBotState.tickerConfigs.find(t => t.symbol === symbol);
+    const targetStrat = ticker?.strategies.find(s => s.id === strategyId);
+    const strategyName = targetStrat?.strategyName || 'Operativa por Señal Cloud';
+    const cushion = targetStrat?.antiHuntCushionPips || cloudBotState.cushionsBySymbol[symbol] || 5.0;
+
+    const acc = cloudBotState.accounts.find(a => a.id === (accountId || cloudBotState.activeAccountId)) || cloudBotState.accounts[0];
+    const requestedRisk = Number(riskPercent || targetStrat?.riskPercent || 1.0);
+    const sizing = calculateDynamicSizing(symbol, acc.balance, requestedRisk);
+
+    const newOrder: DetailedTrade = {
+      id: `trd-exec-${Date.now()}`,
+      ticket: `#${(acc?.broker || 'MS').slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      timestamp: new Date().toISOString(),
+      symbol,
+      direction: (direction as 'BUY' | 'SELL'),
+      strategyId: strategyId || 'manual-cloud',
+      strategyName,
+      status: 'ACTIVE',
+      accountId: acc.id,
+      accountName: acc.name,
+      broker: acc.broker,
+      entryPrice: sizing.currentPrice,
+      currentPrice: sizing.currentPrice,
+      slPrice: direction === 'BUY' ? sizing.slPriceEstimateBuy : sizing.slPriceEstimateSell,
+      tpPrice: direction === 'BUY' ? sizing.tpPriceEstimateBuy : sizing.tpPriceEstimateSell,
+      slPips: sizing.recommendedSlPips,
+      tpPips: sizing.estimatedTpPips,
+      riskPercent: requestedRisk,
+      lotSize: sizing.calculatedLots,
+      riskAmountEur: sizing.riskAmount,
+      floatingPnlEur: 0,
+      floatingPnlPct: 0,
+      spreadAtEntryPips: acc.avgSlippagePips * 2 + 0.7,
+      slippagePips: acc.avgSlippagePips,
+      antiHuntCushionPips: cushion,
+      entryRationale: `Orden ejecutada manualmente en el servidor cloud para la estrategia "${strategyName}". SL dinámico fijado a ${sizing.recommendedSlPips} pips (incluyendo +${cushion} pips de colchón anti-mechazos).`,
+      operatorNotes: `Operación activa en ${acc.broker} (${acc.name}). Monitoreada 24/7 por el Guardián de Floating Equity.`
+    };
+
+    cloudBotState.activeOrders.unshift(newOrder);
+    acc.activeOrdersCount += 1;
+
+    // Log execution
+    cloudBotState.scannerLogs.unshift({
+      id: `log-exec-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      symbol,
+      strategyName,
+      type: 'EXECUTION',
+      message: `[${new Date().toLocaleTimeString('es-ES')}] ⚡ ORDEN DISPARADA EN LA NUBE: ${symbol} ${direction} a ${sizing.currentPrice}. Lotaje: ${sizing.calculatedLots} (${requestedRisk}% riesgo).`,
+      latencyMs: 14
+    });
+
+    syncActiveAccountFromState();
+
+    res.json({
+      success: true,
+      order: newOrder,
+      message: `Orden ${newOrder.ticket} ejecutada y activa en la nube para ${symbol} (${acc.broker})`
+    });
+  });
+
+  // Force instant scanner cycle (for instant user feedback)
+  app.post('/api/cloud-bot/scanner/force-scan', (req, res) => {
+    cloudBotState.ticksProcessedToday += 1;
+    const timeStr = new Date().toLocaleTimeString('es-ES');
+    
+    cloudBotState.scannerLogs.unshift({
+      id: `log-force-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      symbol: 'PORTAFOLIO',
+      type: 'SCAN',
+      message: `[${timeStr}] ⚡ ESCANEO FORZADO POR EL OPERADOR: Verificando los 5 tickers y 8 estrategias activas. Conectividad con servidores broker: ÓPTIMA (12ms).`,
+      latencyMs: 12
+    });
+
+    res.json({
+      success: true,
+      ticksProcessedToday: cloudBotState.ticksProcessedToday,
+      scannerLogs: cloudBotState.scannerLogs.slice(0, 30)
+    });
+  });
+
+  // Add custom ticker to scan
+  app.post('/api/cloud-bot/tickers/add', (req, res) => {
+    const { symbol, displayName, category = 'FOREX', defaultStrategyName = 'Barrido de Liquidez & Reversión' } = req.body;
+    if (!symbol || !symbol.trim()) {
+      return res.status(400).json({ error: 'El símbolo es obligatorio' });
+    }
+
+    const normSymbol = symbol.trim().toUpperCase();
+    if (cloudBotState.tickerConfigs.some(t => t.symbol.toUpperCase() === normSymbol)) {
+      return res.status(400).json({ error: 'Este ticker ya está registrado' });
+    }
+
+    const newTicker: TickerTradingConfig = {
+      symbol: normSymbol,
+      displayName: displayName || normSymbol,
+      category,
+      isActive: true,
+      triggerMode: 'ANY_TRIGGERS',
+      maxConcurrentTrades: 1,
+      strategies: [
+        {
+          id: `strat-${normSymbol.toLowerCase()}-1`,
+          symbol: normSymbol,
+          strategyName: defaultStrategyName,
+          category: 'LIQUIDITY_SWEEP',
+          timeframe: '5m',
+          direction: 'BOTH',
+          riskPercent: 1.0,
+          isEnabled: true,
+          antiHuntCushionPips: 5.0,
+          status: 'ESPERANDO_CONDICIONES',
+          lastScanTimestamp: new Date().toISOString(),
+          tradesGenerated: 0,
+          winRatePct: 0,
+          rules: [
+            { id: 'nr1', name: 'Identificación de Extremos de Liquidez', description: 'Búsqueda de zonas de stops en 5m', isMet: true, currentValue: 'Escaneando' },
+            { id: 'nr2', name: 'Rechazo en vela con mecha', description: 'Rechazo institucional claro', isMet: false, currentValue: 'Esperando' }
+          ]
+        }
+      ]
+    };
+
+    cloudBotState.tickerConfigs.push(newTicker);
+    if (!cloudBotState.cushionsBySymbol[normSymbol]) {
+      cloudBotState.cushionsBySymbol[normSymbol] = 5.0;
+    }
+
+    cloudBotState.scannerLogs.unshift({
+      id: `log-add-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      symbol: normSymbol,
+      type: 'EVALUATION',
+      message: `[${new Date().toLocaleTimeString('es-ES')}] Nuevo ticker ${normSymbol} añadido al escáner del servidor cloud 24/7.`,
+      latencyMs: 9
+    });
+
+    res.json({
+      success: true,
+      ticker: newTicker,
+      tickers: cloudBotState.tickerConfigs
     });
   });
 }

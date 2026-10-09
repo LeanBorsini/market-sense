@@ -113,6 +113,52 @@ export interface EvolutionaryAdjustment {
   actionTaken: string;
 }
 
+export interface StrategyRule {
+  id: string;
+  name: string;
+  description: string;
+  isMet: boolean;
+  currentValue?: string;
+}
+
+export interface BotStrategyConfig {
+  id: string;
+  symbol: string;
+  strategyName: string;
+  category: 'LIQUIDITY_SWEEP' | 'TREND_PULLBACK' | 'SESSION_BREAKOUT' | 'VOLATILITY_EXPANSION' | 'MACRO_NEWS';
+  timeframe: '1m' | '5m' | '15m' | '1h';
+  direction: 'BUY' | 'SELL' | 'BOTH';
+  riskPercent: number; // e.g. 1.0%
+  isEnabled: boolean; // whether scanning for this strategy is active
+  rules: StrategyRule[];
+  status: 'ESPERANDO_CONDICIONES' | 'CONDICIONES_CUMPLIDAS' | 'EJECUTANDO_ORDEN' | 'EN_COOLDOWN';
+  lastScanTimestamp: string;
+  lastTriggerTimestamp?: string;
+  tradesGenerated: number;
+  winRatePct: number;
+  antiHuntCushionPips: number;
+}
+
+export interface TickerTradingConfig {
+  symbol: string;
+  displayName: string;
+  category: 'INDICE' | 'COMMODITY' | 'FOREX' | 'CRYPTO';
+  isActive: boolean;
+  triggerMode: 'ANY_TRIGGERS' | 'CONFLUENCE_ALL'; // "cuando alguna se cumple que entre" -> ANY_TRIGGERS
+  maxConcurrentTrades: number;
+  strategies: BotStrategyConfig[];
+}
+
+export interface LiveScannerLog {
+  id: string;
+  timestamp: string;
+  symbol: string;
+  strategyName?: string;
+  type: 'SCAN' | 'EVALUATION' | 'TRIGGER' | 'EXECUTION' | 'SENTINEL_OK' | 'WARNING';
+  message: string;
+  latencyMs?: number;
+}
+
 export interface CloudBotState {
   isRunning: boolean;
   lastTickTime: string;
@@ -160,6 +206,11 @@ export interface CloudBotState {
   // Multi-Account & Multi-Broker Management
   accounts: TradingAccount[];
   activeAccountId: string;
+
+  // Autonomous Ticker & Strategy Matrix
+  tickerConfigs: TickerTradingConfig[];
+  scannerLogs: LiveScannerLog[];
+  ticksProcessedToday: number;
 }
 
 export interface SizingCalculationRequest {
@@ -183,5 +234,7 @@ export interface SizingCalculationResult {
   riskRewardRatio: string;
   slPriceEstimateBuy: number;
   tpPriceEstimateBuy: number;
+  slPriceEstimateSell?: number;
+  tpPriceEstimateSell?: number;
   algorithmExplanation: string;
 }

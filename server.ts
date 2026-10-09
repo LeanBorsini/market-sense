@@ -319,6 +319,17 @@ app.get('/api/fedora-bot/install-fedora.sh', (req, res) => {
   return res.status(404).send('File not found');
 });
 
+// Global JSON error handler to ensure all API errors return clean JSON
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled server error:', err);
+  if (!res.headersSent) {
+    res.status(500).json({
+      error: err?.message || 'Error interno del servidor',
+      success: false
+    });
+  }
+});
+
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
   const distPath = path.resolve(process.cwd(), 'dist');

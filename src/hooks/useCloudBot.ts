@@ -12,8 +12,7 @@ export type CloudBotTab =
   | 'active_orders' 
   | 'journal' 
   | 'calculator' 
-  | 'evolution'
-  | 'broker_prop';
+  | 'evolution';
 
 export interface ConnectMT5Params {
   platform: 'MT5_DEMO' | 'MT5_REAL' | 'MT4_DEMO' | 'MT4_REAL' | 'CTRADER';
@@ -21,12 +20,12 @@ export interface ConnectMT5Params {
   server: string;
   accountNumber: string;
   password: string;
-  accountType?: 'BROKER_DEMO' | 'PROP_FIRM_EVAL' | 'PROP_FIRM_FUNDED' | 'BROKER_REAL';
+  accountType?: 'BROKER_DEMO' | 'BROKER_REAL' | 'PROP_FIRM_EVAL' | 'PROP_FIRM_FUNDED';
 }
 
 export interface ConnectMT5Response {
   success: boolean;
-  connectionStatus: string;
+  connectionStatus: 'CONNECTED' | 'ERROR';
   pingMs: number;
   detectedBalance: number;
   detectedEquity: number;
@@ -48,6 +47,38 @@ export interface ConnectMT5Response {
   message: string;
 }
 
+/**
+ * Robust JSON fetcher that guarantees no cryptic "Unexpected token 'T'"
+ * or syntax errors can crash the client if the backend returns text or HTML.
+ */
+async function safeFetchJson<T = any>(url: string, options?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(url, options);
+  } catch (netErr: any) {
+    throw new Error(`Conexión con el servidor no disponible: ${netErr.message || 'Error de red'}`);
+  }
+
+  const text = await res.text();
+  let data: any = {};
+  
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    // If not JSON, handle gracefully
+    if (!res.ok) {
+      throw new Error(`Error en el servidor (${res.status}): ${text.slice(0, 120)}`);
+    }
+    throw new Error(`Respuesta no procesable del servidor: ${text.slice(0, 120)}`);
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || data.message || `Error del servidor (${res.status})`);
+  }
+
+  return data;
+}
+
 export function useCloudBot() {
   const [botState, setBotState] = useState<CloudBotState | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -59,6 +90,8 @@ export function useCloudBot() {
 
   const isMountedRef = useRef<boolean>(true);
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const botStateRef = useRef<CloudBotState | null>(null);
+  botStateRef.current = botState;
 
   const showNotification = useCallback((msg: string) => {
     setActionSuccessMessage(msg);
@@ -71,9 +104,7 @@ export function useCloudBot() {
   const fetchBotState = useCallback(async (isBackground = false) => {
     if (!isBackground) setIsLoading(true);
     try {
-      const res = await fetch('/api/cloud-bot/state');
-      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-      const data: CloudBotState = await res.json();
+      const data = await safeFetchJson<CloudBotState>('/api/cloud-bot/state');
       if (isMountedRef.current) {
         setBotState(data);
         setError(null);
@@ -88,7 +119,7 @@ export function useCloudBot() {
     } catch (err: any) {
       if (isMountedRef.current) {
         console.warn('Error syncing cloud bot state:', err.message);
-        if (!botState) {
+        if (!botStateRef.current) {
           setError('No se pudo conectar con el motor del bot 24/7 en la nube');
         }
       }
@@ -97,7 +128,7 @@ export function useCloudBot() {
         setIsLoading(false);
       }
     }
-  }, [botState]);
+  }, []);
 
   // Initial load and polling every 3.5 seconds
   useEffect(() => {
@@ -114,58 +145,62 @@ export function useCloudBot() {
         clearInterval(pollingTimerRef.current);
       }
     };
-  }, []);
+  }, [fetchBotState]);
 
   // Toggle Bot Execution 24/7
   const toggleBot = useCallback(async (forcedState?: boolean) => {
     try {
-      const res = await fetch('/api/cloud-bot/toggle', {
+      const targetState = forcedState !== undefined ? forcedState : !botStateRef.current?.isRunning;
+      const data = await safeFetchJson<{ state?: CloudBotState; isRunning?: boolean }>('/api/cloud-bot/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isRunning: forcedState !== undefined ? forcedState : !botState?.isRunning })
+        body: JSON.stringify({ isRunning: targetState })
       });
-      const data = await res.json();
       if (data.state) {
         setBotState(data.state);
         showNotification(data.state.isRunning ? '🚀 Bot 24/7 Activado y Operando' : '⏸️ Bot Pausado');
+      } else {
+        await fetchBotState(true);
       }
     } catch (err: any) {
       setError(err.message);
     }
-  }, [botState?.isRunning, showNotification]);
+  }, [fetchBotState, showNotification]);
 
   // Switch Active Account
   const switchAccount = useCallback(async (accountId: string) => {
     try {
-      const res = await fetch('/api/cloud-bot/accounts/switch', {
+      const data = await safeFetchJson<{ state?: CloudBotState; message?: string }>('/api/cloud-bot/accounts/switch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId })
       });
-      const data = await res.json();
       if (data.state) {
         setBotState(data.state);
-        showNotification(data.message || 'Cuenta activa actualizada');
+      } else {
+        await fetchBotState(true);
       }
+      showNotification(data.message || 'Cuenta activa actualizada');
     } catch (err: any) {
       setError(err.message);
     }
-  }, [showNotification]);
+  }, [fetchBotState, showNotification]);
 
   // Sync Live Balance with Broker
   const syncAccountBalance = useCallback(async (accountId: string) => {
     setIsSyncing(true);
     try {
-      const res = await fetch(`/api/cloud-bot/accounts/${accountId}/sync`, {
+      const data = await safeFetchJson<{ state?: CloudBotState; message?: string }>(`/api/cloud-bot/accounts/${accountId}/sync`, {
         method: 'POST'
       });
-      const data = await res.json();
-      if (data.success) {
-        showNotification(data.message || 'Saldo sincronizado con broker');
+      if (data.state) {
+        setBotState(data.state);
+      } else {
         await fetchBotState(true);
       }
+      showNotification(data.message || 'Saldo sincronizado con broker');
     } catch (err: any) {
-      setError('Error al sincronizar saldo con broker');
+      setError(err.message || 'Error al sincronizar saldo con broker');
     } finally {
       setIsSyncing(false);
     }
@@ -173,28 +208,21 @@ export function useCloudBot() {
 
   // Connect & Test MT5 Bridge
   const testAndConnectMT5 = useCallback(async (params: ConnectMT5Params): Promise<ConnectMT5Response> => {
-    const res = await fetch('/api/cloud-bot/accounts/connect-mt5', {
+    return await safeFetchJson<ConnectMT5Response>('/api/cloud-bot/accounts/connect-mt5', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params)
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Error al conectar con servidor MT5');
-    }
-    return data;
   }, []);
 
   // Create & Register New Account
   const createAccount = useCallback(async (accountData: any) => {
     try {
-      const res = await fetch('/api/cloud-bot/accounts/create', {
+      const data = await safeFetchJson<{ state?: CloudBotState; message?: string }>('/api/cloud-bot/accounts/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(accountData)
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al registrar cuenta');
       if (data.state) {
         setBotState(data.state);
       } else {
@@ -211,141 +239,138 @@ export function useCloudBot() {
   // Toggle Ticker Active
   const toggleTicker = useCallback(async (symbol: string) => {
     try {
-      const res = await fetch('/api/cloud-bot/tickers/toggle', {
+      const data = await safeFetchJson<{ state?: CloudBotState; message?: string }>('/api/cloud-bot/tickers/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol })
       });
-      const data = await res.json();
       if (data.state) setBotState(data.state);
+      else await fetchBotState(true);
       showNotification(data.message || `Ticker ${symbol} actualizado`);
     } catch (err: any) {
       setError(err.message);
     }
-  }, [showNotification]);
+  }, [fetchBotState, showNotification]);
 
   // Toggle Strategy on Ticker
   const toggleStrategy = useCallback(async (symbol: string, strategyId: string) => {
     try {
-      const res = await fetch('/api/cloud-bot/tickers/strategy/toggle', {
+      const data = await safeFetchJson<{ state?: CloudBotState; message?: string }>('/api/cloud-bot/tickers/strategy/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, strategyId })
       });
-      const data = await res.json();
       if (data.state) setBotState(data.state);
+      else await fetchBotState(true);
       showNotification(data.message || 'Estrategia actualizada');
     } catch (err: any) {
       setError(err.message);
     }
-  }, [showNotification]);
+  }, [fetchBotState, showNotification]);
 
   // Set Ticker Trigger Mode (Any vs Confluence)
   const setTickerMode = useCallback(async (symbol: string, triggerMode: 'ANY_TRIGGERS' | 'CONFLUENCE_ALL') => {
     try {
-      const res = await fetch('/api/cloud-bot/tickers/mode', {
+      const data = await safeFetchJson<{ state?: CloudBotState; message?: string }>('/api/cloud-bot/tickers/mode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, triggerMode })
       });
-      const data = await res.json();
       if (data.state) setBotState(data.state);
+      else await fetchBotState(true);
       showNotification(data.message || `Modo cambiado a: ${triggerMode}`);
     } catch (err: any) {
       setError(err.message);
     }
-  }, [showNotification]);
+  }, [fetchBotState, showNotification]);
 
   // Force Market Scan
   const forceScan = useCallback(async () => {
     try {
-      const res = await fetch('/api/cloud-bot/scanner/force-scan', {
+      const data = await safeFetchJson<{ state?: CloudBotState }>('/api/cloud-bot/scanner/force-scan', {
         method: 'POST'
       });
-      const data = await res.json();
       if (data.state) setBotState(data.state);
+      else await fetchBotState(true);
       showNotification('📡 Escaneo forzado ejecutado');
     } catch (err: any) {
-      setError('Error al forzar escaneo');
+      setError(err.message || 'Error al forzar escaneo');
     }
-  }, [showNotification]);
+  }, [fetchBotState, showNotification]);
 
   // Execute Strategy / Manual Trigger
   const executeStrategy = useCallback(async (symbol: string, strategyId?: string, direction?: 'BUY' | 'SELL') => {
     try {
-      const res = await fetch('/api/cloud-bot/tickers/execute-strategy', {
+      const data = await safeFetchJson<{ state?: CloudBotState; message?: string }>('/api/cloud-bot/tickers/execute-strategy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, strategyId, direction })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al ejecutar orden');
       if (data.state) setBotState(data.state);
+      else await fetchBotState(true);
       showNotification(data.message || `✅ Orden ejecutada en ${symbol}`);
       return data;
     } catch (err: any) {
       setError(err.message);
       throw err;
     }
-  }, [showNotification]);
+  }, [fetchBotState, showNotification]);
 
   // Calculate Sizing with Anti-Hunt Cushion
   const calculateSizing = useCallback(async (symbol: string, balance: number, riskPercent: number): Promise<SizingCalculationResult> => {
-    const res = await fetch('/api/cloud-bot/calculate-sizing', {
+    const data = await safeFetchJson<any>('/api/cloud-bot/calculate-sizing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbol, balance, riskPercent })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al calcular dimensionamiento');
-    return data;
+    return data.result || data;
   }, []);
 
   // Reset Circuit Breaker
   const resetCircuitBreaker = useCallback(async () => {
     try {
-      const res = await fetch('/api/cloud-bot/circuit-breaker/reset', {
+      const data = await safeFetchJson<{ state?: CloudBotState }>('/api/cloud-bot/circuit-breaker/reset', {
         method: 'POST'
       });
-      const data = await res.json();
       if (data.state) setBotState(data.state);
+      else await fetchBotState(true);
       showNotification('✅ Circuit Breaker reiniciado y protección restaurada');
     } catch (err: any) {
       setError(err.message);
     }
-  }, [showNotification]);
+  }, [fetchBotState, showNotification]);
 
   // Add Journal Note
   const addJournalNote = useCallback(async (tradeId: string, note: string) => {
     try {
-      const res = await fetch('/api/cloud-bot/journal/note', {
+      const data = await safeFetchJson<{ state?: CloudBotState }>('/api/cloud-bot/journal/note', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tradeId, note })
       });
-      const data = await res.json();
       if (data.state) setBotState(data.state);
+      else await fetchBotState(true);
       showNotification('Nota guardada en el diario');
     } catch (err: any) {
       setError(err.message);
     }
-  }, [showNotification]);
+  }, [fetchBotState, showNotification]);
 
   // Update Anti-Hunt Cushion
   const updateCushion = useCallback(async (symbol: string, cushionPips: number) => {
     try {
-      const res = await fetch('/api/cloud-bot/cushion', {
+      const data = await safeFetchJson<{ state?: CloudBotState }>('/api/cloud-bot/cushion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, cushionPips })
       });
-      const data = await res.json();
       if (data.state) setBotState(data.state);
+      else await fetchBotState(true);
       showNotification(`Colchón anti-caza actualizado para ${symbol}`);
     } catch (err: any) {
       setError(err.message);
     }
-  }, [showNotification]);
+  }, [fetchBotState, showNotification]);
 
   // Active account helper
   const activeAccount: TradingAccount | undefined = botState?.accounts.find(

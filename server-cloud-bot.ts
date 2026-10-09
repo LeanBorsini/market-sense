@@ -220,7 +220,7 @@ export const INITIAL_ACCOUNTS: TradingAccount[] = [
     platform: 'MT5_DEMO',
     accountType: 'BROKER_DEMO',
     accountNumber: '51294821',
-    password: 'Demo1234!',
+    password: 'demo_password_123',
     server: 'MetaQuotes-Demo',
     currency: 'EUR',
     initialCapital: 10000.00,
@@ -1674,138 +1674,156 @@ export function initCloudBotRoutes(app: express.Express) {
 
   // Sync live account balance and equity with MetaTrader 5 bridge
   app.post('/api/cloud-bot/accounts/:id/sync', (req, res) => {
-    const { id } = req.params;
-    const acc = cloudBotState.accounts.find(a => a.id === id);
-    if (!acc) {
-      return res.status(404).json({ error: 'Cuenta no encontrada' });
+    try {
+      const { id } = req.params;
+      const acc = cloudBotState.accounts.find(a => a.id === id);
+      if (!acc) {
+        return res.status(404).json({ error: 'Cuenta no encontrada' });
+      }
+
+      // Refresh telemetry
+      acc.lastSyncTime = `En vivo · ${new Date().toLocaleTimeString('es-ES')}`;
+      acc.connectionStatus = 'CONNECTED';
+      acc.pingMs = Math.floor(Math.random() * 8 + 12);
+      
+      // Slight live market floating adjustment to reflect real broker sync
+      const randomFloatDelta = Number((Math.random() * 4 - 2).toFixed(2));
+      acc.currentEquity = Number((acc.balance + acc.floatingPnlEur + randomFloatDelta).toFixed(2));
+      acc.freeMargin = Number((acc.currentEquity - 120).toFixed(2));
+
+      if (acc.id === cloudBotState.activeAccountId) {
+        cloudBotState.accountBalance = acc.balance;
+        cloudBotState.currentEquity = acc.currentEquity;
+        cloudBotState.floatingPnlEur = acc.floatingPnlEur;
+      }
+
+      res.json({
+        success: true,
+        account: acc,
+        state: cloudBotState,
+        message: `🔄 Saldo sincronizado en tiempo real con ${acc.broker} (${acc.server}). Balance: €${acc.balance.toLocaleString('es-ES')}`
+      });
+    } catch (err: any) {
+      console.error('Error syncing account:', err);
+      res.status(500).json({ error: err.message || 'Error al sincronizar cuenta con broker' });
     }
-
-    // Refresh telemetry
-    acc.lastSyncTime = `En vivo · ${new Date().toLocaleTimeString('es-ES')}`;
-    acc.connectionStatus = 'CONNECTED';
-    acc.pingMs = Math.floor(Math.random() * 8 + 12);
-    
-    // Slight live market floating adjustment to reflect real broker sync
-    const randomFloatDelta = Number((Math.random() * 4 - 2).toFixed(2));
-    acc.currentEquity = Number((acc.balance + acc.floatingPnlEur + randomFloatDelta).toFixed(2));
-    acc.freeMargin = Number((acc.currentEquity - 120).toFixed(2));
-
-    if (acc.id === cloudBotState.activeAccountId) {
-      cloudBotState.accountBalance = acc.balance;
-      cloudBotState.currentEquity = acc.currentEquity;
-      cloudBotState.floatingPnlEur = acc.floatingPnlEur;
-    }
-
-    res.json({
-      success: true,
-      account: acc,
-      message: `🔄 Saldo sincronizado en tiempo real con ${acc.broker} (${acc.server}). Balance: €${acc.balance.toLocaleString('es-ES')}`
-    });
   });
 
   // Switch the primary active account
   app.post('/api/cloud-bot/accounts/switch', (req, res) => {
-    const { accountId } = req.body;
-    const target = cloudBotState.accounts.find(a => a.id === accountId);
-    if (!target) {
-      return res.status(404).json({ error: 'Cuenta no encontrada' });
+    try {
+      const { accountId } = req.body;
+      const target = cloudBotState.accounts.find(a => a.id === accountId);
+      if (!target) {
+        return res.status(404).json({ error: 'Cuenta no encontrada' });
+      }
+
+      syncActiveAccountFromState();
+      syncStateWithActiveAccount(accountId);
+
+      res.json({
+        success: true,
+        message: `Cambiado a cuenta activa: ${target.name} (${target.broker})`,
+        activeAccountId: target.id,
+        state: cloudBotState
+      });
+    } catch (err: any) {
+      console.error('Error switching account:', err);
+      res.status(500).json({ error: err.message || 'Error al cambiar cuenta activa' });
     }
-
-    syncActiveAccountFromState();
-    syncStateWithActiveAccount(accountId);
-
-    res.json({
-      success: true,
-      message: `Cambiado a cuenta activa: ${target.name} (${target.broker})`,
-      activeAccountId: target.id,
-      state: cloudBotState
-    });
   });
 
   // Create a new trading account (Demo, Prop Firm Eval, Prop Firm Real, Broker Real)
   app.post('/api/cloud-bot/accounts/create', (req, res) => {
-    const {
-      name,
-      broker = 'MetaQuotes MT5',
-      platform = 'MT5_DEMO',
-      accountType = 'BROKER_DEMO',
-      accountNumber,
-      password = '',
-      server = 'MetaQuotes-Demo',
-      currency = 'EUR',
-      initialCapital = 10000,
-      dailyDrawdownLimitPct = 4.0,
-      circuitBreakerThresholdPct = 3.2,
-      calculationMode = 'BALANCE_BASED',
-      totalDrawdownLimitPct = 8.0,
-      maxRiskPerTradePct = 0.75,
-      autoLimitsEnabled = true,
-      tags = []
-    } = req.body;
+    try {
+      const {
+        name,
+        broker = 'MetaQuotes MT5',
+        platform = 'MT5_DEMO',
+        accountType = 'BROKER_DEMO',
+        accountNumber,
+        password = '',
+        server = 'MetaQuotes-Demo',
+        currency = 'EUR',
+        initialCapital = 10000,
+        dailyDrawdownLimitPct = 4.0,
+        circuitBreakerThresholdPct = 3.2,
+        calculationMode = 'BALANCE_BASED',
+        totalDrawdownLimitPct = 8.0,
+        maxRiskPerTradePct = 0.75,
+        autoLimitsEnabled = true,
+        tags = []
+      } = req.body;
 
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'El nombre de la cuenta es obligatorio' });
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'El nombre de la cuenta es obligatorio' });
+      }
+
+      const initCap = Number(initialCapital) || 10000;
+      const genNumber = accountNumber || `${broker.slice(0, 3).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      const newAcc: TradingAccount = {
+        id: `acc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        name: name.trim(),
+        broker,
+        platform,
+        accountType,
+        accountNumber: genNumber,
+        password: password || 'demo_password_123',
+        server: server || 'MetaQuotes-Demo',
+        currency,
+        initialCapital: initCap,
+        balance: initCap,
+        currentEquity: initCap,
+        freeMargin: initCap,
+        leverage: 100,
+        floatingPnlEur: 0,
+        floatingPnlPct: 0,
+        dailyPnlEur: 0,
+        dailyPnlPct: 0,
+        peakEquityToday: initCap,
+        connectionStatus: 'CONNECTED',
+        pingMs: Math.floor(Math.random() * 10 + 12),
+        lastSyncTime: 'En vivo · Auto-Sync 4s',
+        autoLimitsEnabled: autoLimitsEnabled !== false,
+        dailyDrawdownLimitPct: Number(dailyDrawdownLimitPct) || 4.0,
+        circuitBreakerThresholdPct: Number(circuitBreakerThresholdPct) || 3.2,
+        warningThresholdPct: Number((dailyDrawdownLimitPct * 0.5).toFixed(1)),
+        deriskThresholdPct: Number((dailyDrawdownLimitPct * 0.7).toFixed(1)),
+        calculationMode,
+        totalDrawdownLimitPct: Number(totalDrawdownLimitPct) || 8.0,
+        maxRiskPerTradePct: Number(maxRiskPerTradePct) || 0.75,
+        isActive: true,
+        isDrawdownLocked: false,
+        circuitBreakerTripped: false,
+        activeOrdersCount: 0,
+        totalTrades: 0,
+        winningTrades: 0,
+        losingTrades: 0,
+        winRatePct: 0,
+        profitFactor: 0,
+        netPnlEur: 0,
+        avgSlippagePips: 0.12,
+        tags: tags.length > 0 ? tags : [
+          platform === 'MT5_DEMO' ? 'MT5 Demo' : platform === 'MT5_REAL' ? 'MT5 Real' : 'Trading Conectado',
+          accountType === 'PROP_FIRM_EVAL' ? 'Evaluación' : accountType === 'PROP_FIRM_FUNDED' ? 'Fondeada Real' : 'Operativa Activa'
+        ]
+      };
+
+      cloudBotState.accounts.push(newAcc);
+      syncStateWithActiveAccount(newAcc.id);
+
+      res.json({
+        success: true,
+        message: `Nueva cuenta ${newAcc.name} vinculada al Centro de Mando (${newAcc.platform})`,
+        account: newAcc,
+        accounts: cloudBotState.accounts,
+        state: cloudBotState
+      });
+    } catch (err: any) {
+      console.error('Error creating account:', err);
+      res.status(500).json({ error: err.message || 'Error al vincular cuenta' });
     }
-
-    const initCap = Number(initialCapital) || 10000;
-    const genNumber = accountNumber || `${broker.slice(0, 3).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
-
-    const newAcc: TradingAccount = {
-      id: `acc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      name: name.trim(),
-      broker,
-      platform,
-      accountType,
-      accountNumber: genNumber,
-      password: password || 'Demo1234!',
-      server: server || 'MetaQuotes-Demo',
-      currency,
-      initialCapital: initCap,
-      balance: initCap,
-      currentEquity: initCap,
-      freeMargin: initCap,
-      leverage: 100,
-      floatingPnlEur: 0,
-      floatingPnlPct: 0,
-      dailyPnlEur: 0,
-      dailyPnlPct: 0,
-      peakEquityToday: initCap,
-      connectionStatus: 'CONNECTED',
-      pingMs: Math.floor(Math.random() * 10 + 12),
-      lastSyncTime: 'En vivo · Auto-Sync 4s',
-      autoLimitsEnabled: autoLimitsEnabled !== false,
-      dailyDrawdownLimitPct: Number(dailyDrawdownLimitPct) || 4.0,
-      circuitBreakerThresholdPct: Number(circuitBreakerThresholdPct) || 3.2,
-      warningThresholdPct: Number((dailyDrawdownLimitPct * 0.5).toFixed(1)),
-      deriskThresholdPct: Number((dailyDrawdownLimitPct * 0.7).toFixed(1)),
-      calculationMode,
-      totalDrawdownLimitPct: Number(totalDrawdownLimitPct) || 8.0,
-      maxRiskPerTradePct: Number(maxRiskPerTradePct) || 0.75,
-      isActive: true,
-      isDrawdownLocked: false,
-      circuitBreakerTripped: false,
-      activeOrdersCount: 0,
-      totalTrades: 0,
-      winningTrades: 0,
-      losingTrades: 0,
-      winRatePct: 0,
-      profitFactor: 0,
-      netPnlEur: 0,
-      avgSlippagePips: 0.12,
-      tags: tags.length > 0 ? tags : [
-        platform === 'MT5_DEMO' ? 'MT5 Demo' : platform === 'MT5_REAL' ? 'MT5 Real' : 'Trading Conectado',
-        accountType === 'PROP_FIRM_EVAL' ? 'Evaluación' : accountType === 'PROP_FIRM_FUNDED' ? 'Fondeada Real' : 'Operativa Activa'
-      ]
-    };
-
-    cloudBotState.accounts.push(newAcc);
-
-    res.json({
-      success: true,
-      message: `Nueva cuenta ${newAcc.name} vinculada al Centro de Mando (${newAcc.platform})`,
-      account: newAcc,
-      accounts: cloudBotState.accounts
-    });
   });
 
   // Toggle active/pause trading on a specific account

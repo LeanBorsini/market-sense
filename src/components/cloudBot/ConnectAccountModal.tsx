@@ -75,10 +75,10 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({
   const [platform, setPlatform] = useState<'MT5_DEMO' | 'MT5_REAL' | 'MT4_DEMO' | 'MT4_REAL' | 'CTRADER'>('MT5_DEMO');
   const [broker, setBroker] = useState<string>('MetaQuotes MT5');
   const [server, setServer] = useState<string>('MetaQuotes-Demo');
-  const [accountNumber, setAccountNumber] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
+  const [accountNumber, setAccountNumber] = useState<string>('51294821');
+  const [password, setPassword] = useState<string>('demo_password_123');
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [accountName, setAccountName] = useState<string>('');
+  const [accountName, setAccountName] = useState<string>('MetaQuotes MT5 Demo');
   const [accountType, setAccountType] = useState<any>('BROKER_DEMO');
 
   const [isTesting, setIsTesting] = useState<boolean>(false);
@@ -93,8 +93,16 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({
     setServer(preset.server);
     setPlatform(preset.platform as any);
     setAccountType(preset.accountType);
-    if (!accountName) {
-      setAccountName(preset.name);
+    setAccountName(preset.name);
+    if (preset.name.includes('MetaQuotes')) {
+      setAccountNumber('51294821');
+      setPassword('demo_password_123');
+    } else if (preset.name.includes('IC Markets')) {
+      setAccountNumber('IC-550183');
+      setPassword('Demo1234!');
+    } else if (preset.name.includes('FTMO')) {
+      setAccountNumber('FTMO-100921');
+      setPassword('FtmoSecure99!');
     }
     setTestResult(null);
     setFormError(null);

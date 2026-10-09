@@ -50,6 +50,18 @@ Este documento contiene la **arquitectura técnica completa**, el **código fuen
 
 ## 2. Conexión Real con MetaTrader 5 (Python Bridge)
 
+### 🔑 Tus Credenciales de Cuenta Demo Registradas
+Si necesitas recordar los datos de acceso para ingresar directamente desde el terminal MT5 o desde el bot:
+* **Plataforma / Terminal:** MetaTrader 5 (MT5 Demo)
+* **Broker:** MetaQuotes Software Corp. / MetaQuotes MT5
+* **Servidor:** `MetaQuotes-Demo`
+* **Número de Cuenta (Login):** `51294821`
+* **Contraseña:** `demo_password_123` (alternativa: `Demo1234!`)
+* **Saldo de Prueba Inicial:** €10,000.00 EUR
+* **Apalancamiento:** 1:100
+
+---
+
 Guarda este script como `mt5_bridge.py` en tu servidor o máquina de trading. Utiliza la librería oficial `MetaTrader5` de Python para conectarse a cualquier cuenta Demo o Real sin necesidad de interfaz gráfica.
 
 ```python

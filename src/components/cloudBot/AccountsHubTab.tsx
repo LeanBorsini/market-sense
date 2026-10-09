@@ -200,7 +200,7 @@ export const AccountsHubTab: React.FC<AccountsHubTabProps> = ({
               <div className="flex items-center gap-1.5 text-slate-300">
                 <span className="text-slate-500">Contraseña:</span>
                 <span className="font-mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded">
-                  {showPasswordMap[activeAccount.id] ? (activeAccount.password || 'Demo1234!') : '••••••••'}
+                  {showPasswordMap[activeAccount.id] ? (activeAccount.password || 'demo_password_123') : '••••••••'}
                 </span>
                 <button
                   type="button"
@@ -268,8 +268,20 @@ export const AccountsHubTab: React.FC<AccountsHubTabProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-slate-400 mt-0.5">
-                      {acc.broker} · {acc.server} · Login: <span className="font-mono text-slate-300 font-semibold">{acc.accountNumber}</span>
+                    <div className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                      <span>{acc.broker} ({acc.server})</span>
+                      <span className="text-slate-500">·</span>
+                      <span>Login: <strong className="font-mono text-slate-200">{acc.accountNumber}</strong></span>
+                      <span className="text-slate-500">·</span>
+                      <span>Clave: <strong className="font-mono text-slate-200">{showPasswordMap[acc.id] ? (acc.password || 'demo_password_123') : '••••••••'}</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => togglePasswordVisibility(acc.id)}
+                        className="text-slate-400 hover:text-white ml-0.5"
+                        title="Ver contraseña"
+                      >
+                        {showPasswordMap[acc.id] ? <EyeOff className="w-3 h-3 inline" /> : <Eye className="w-3 h-3 inline" />}
+                      </button>
                     </div>
                   </div>
 

@@ -65,23 +65,46 @@ async function safeFetchJson<T = any>(url: string, options?: RequestInit): Promi
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    // If not JSON, handle gracefully
+    // If not valid JSON, provide clean user-facing error message without leaking edge server headers/tokens
     if (!res.ok) {
-      throw new Error(`Error en el servidor (${res.status}): ${text.slice(0, 120)}`);
+      if (res.status === 404) {
+        throw new Error('Servicio temporalmente no disponible (404). Comprueba que el servidor backend o funciones estén desplegadas.');
+      }
+      throw new Error(`Error en el servidor (${res.status}): No se pudo procesar la solicitud`);
     }
-    throw new Error(`Respuesta no procesable del servidor: ${text.slice(0, 120)}`);
+    throw new Error(`Respuesta no procesable del servidor (${res.status})`);
   }
 
   if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error(data.error || 'Servicio no encontrado (404).');
+    }
     throw new Error(data.error || data.message || `Error del servidor (${res.status})`);
   }
 
   return data;
 }
 
+const STORAGE_CACHE_KEY = 'marketsense_cloud_bot_state_cache';
+
 export function useCloudBot() {
-  const [botState, setBotState] = useState<CloudBotState | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [botState, setBotState] = useState<CloudBotState | null>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem(STORAGE_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && Array.isArray(parsed.accounts)) {
+            return parsed;
+          }
+        }
+      }
+    } catch {
+      // Ignore cache parse error
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(!botState);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<CloudBotTab>('strategies_hub');
@@ -105,6 +128,13 @@ export function useCloudBot() {
     const nextState: CloudBotState | null = data.state || data.data || (data.accounts ? data : null);
     if (nextState && Array.isArray(nextState.accounts)) {
       setBotState(nextState);
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(nextState));
+        }
+      } catch {
+        // LocalStorage quota or access error ignored
+      }
       return true;
     }
     return false;
@@ -112,13 +142,20 @@ export function useCloudBot() {
 
   // Fetch full bot state
   const fetchBotState = useCallback(async (isBackground = false) => {
-    if (!isBackground) setIsLoading(true);
+    if (!isBackground && !botStateRef.current) setIsLoading(true);
     try {
       const resp = await safeFetchJson<any>('/api/cloud-bot/state');
       const data: CloudBotState | null = resp?.data || resp?.state || (resp?.accounts ? resp : null);
-      if (isMountedRef.current && data) {
+      if (isMountedRef.current && data && Array.isArray(data.accounts)) {
         setBotState(data);
         setError(null);
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(data));
+          }
+        } catch {
+          // Ignore
+        }
         // Default selected symbol if not selected
         if (data.tickerConfigs && data.tickerConfigs.length > 0) {
           setSelectedSymbol((prev) => {
@@ -131,7 +168,7 @@ export function useCloudBot() {
       if (isMountedRef.current) {
         console.warn('Error syncing cloud bot state:', err.message);
         if (!botStateRef.current) {
-          setError('No se pudo conectar con el motor del bot 24/7 en la nube');
+          setError(err.message || 'No se pudo conectar con el motor del bot 24/7');
         }
       }
     } finally {

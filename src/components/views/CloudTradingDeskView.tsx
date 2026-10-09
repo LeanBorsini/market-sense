@@ -783,6 +783,30 @@ export const CloudTradingDeskView: React.FC = () => {
     });
   }, [botState?.tickerConfigs, tickerCategoryFilter, tickerSearch]);
 
+  // Multi-Account Portfolio Data (All hooks MUST be called unconditionally at top)
+  const accounts = botState?.accounts || [];
+  const currentActiveId = botState?.activeAccountId || accounts[0]?.id;
+  const activeAccount = accounts.find(a => a.id === currentActiveId) || accounts[0];
+
+  const totalPortfolioBalance = useMemo(() => {
+    return accounts.reduce((sum, a) => sum + (a.currency === 'USD' ? a.balance * 0.93 : a.balance), 0);
+  }, [accounts]);
+
+  const totalPortfolioEquity = useMemo(() => {
+    return accounts.reduce((sum, a) => sum + (a.currency === 'USD' ? a.currentEquity * 0.93 : a.currentEquity), 0);
+  }, [accounts]);
+
+  const totalPortfolioNetPnl = useMemo(() => {
+    return accounts.reduce((sum, a) => sum + (a.currency === 'USD' ? a.netPnlEur * 0.93 : a.netPnlEur), 0);
+  }, [accounts]);
+
+  // Tickers & Strategies counts
+  const tickerConfigs = botState?.tickerConfigs || [];
+  const activeTickers = tickerConfigs.filter(t => t.isActive);
+  const totalStrategiesCount = tickerConfigs.reduce((sum, t) => sum + t.strategies.length, 0);
+  const activeStrategiesCount = tickerConfigs.reduce((sum, t) => sum + t.strategies.filter(s => s.isEnabled && t.isActive).length, 0);
+  const latestScannerLogs = botState?.scannerLogs || [];
+
   if (isLoading && !botState) {
     return (
       <div className="p-12 text-center space-y-4 bg-white rounded-2xl border border-slate-200">
@@ -817,30 +841,6 @@ export const CloudTradingDeskView: React.FC = () => {
   const currentFloatingDrawdownPct = floatingLossEur > 0 ? Number(((floatingLossEur / benchmarkCapital) * 100).toFixed(2)) : 0;
   const distanceToCircuitBreaker = Math.max(0, Number((circuitBreakerThreshold - currentFloatingDrawdownPct).toFixed(2)));
   const distanceToFatalBreach = Math.max(0, Number((dailyDrawdownLimit - currentFloatingDrawdownPct).toFixed(2)));
-
-  // Multi-Account Portfolio Data
-  const accounts = botState?.accounts || [];
-  const currentActiveId = botState?.activeAccountId || accounts[0]?.id;
-  const activeAccount = accounts.find(a => a.id === currentActiveId) || accounts[0];
-
-  const totalPortfolioBalance = useMemo(() => {
-    return accounts.reduce((sum, a) => sum + (a.currency === 'USD' ? a.balance * 0.93 : a.balance), 0);
-  }, [accounts]);
-
-  const totalPortfolioEquity = useMemo(() => {
-    return accounts.reduce((sum, a) => sum + (a.currency === 'USD' ? a.currentEquity * 0.93 : a.currentEquity), 0);
-  }, [accounts]);
-
-  const totalPortfolioNetPnl = useMemo(() => {
-    return accounts.reduce((sum, a) => sum + (a.currency === 'USD' ? a.netPnlEur * 0.93 : a.netPnlEur), 0);
-  }, [accounts]);
-
-  // Tickers & Strategies counts
-  const tickerConfigs = botState?.tickerConfigs || [];
-  const activeTickers = tickerConfigs.filter(t => t.isActive);
-  const totalStrategiesCount = tickerConfigs.reduce((sum, t) => sum + t.strategies.length, 0);
-  const activeStrategiesCount = tickerConfigs.reduce((sum, t) => sum + t.strategies.filter(s => s.isEnabled && t.isActive).length, 0);
-  const latestScannerLogs = botState?.scannerLogs || [];
 
   return (
     <div className="space-y-6">

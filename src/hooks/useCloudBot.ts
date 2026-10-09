@@ -100,12 +100,23 @@ export function useCloudBot() {
     }, 4000);
   }, []);
 
+  const updateStateFromResponse = useCallback((data: any): boolean => {
+    if (!data) return false;
+    const nextState: CloudBotState | null = data.state || data.data || (data.accounts ? data : null);
+    if (nextState && Array.isArray(nextState.accounts)) {
+      setBotState(nextState);
+      return true;
+    }
+    return false;
+  }, []);
+
   // Fetch full bot state
   const fetchBotState = useCallback(async (isBackground = false) => {
     if (!isBackground) setIsLoading(true);
     try {
-      const data = await safeFetchJson<CloudBotState>('/api/cloud-bot/state');
-      if (isMountedRef.current) {
+      const resp = await safeFetchJson<any>('/api/cloud-bot/state');
+      const data: CloudBotState | null = resp?.data || resp?.state || (resp?.accounts ? resp : null);
+      if (isMountedRef.current && data) {
         setBotState(data);
         setError(null);
         // Default selected symbol if not selected
@@ -156,16 +167,15 @@ export function useCloudBot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isRunning: targetState })
       });
-      if (data.state) {
-        setBotState(data.state);
-        showNotification(data.state.isRunning ? '🚀 Bot 24/7 Activado y Operando' : '⏸️ Bot Pausado');
-      } else {
+      if (!updateStateFromResponse(data)) {
         await fetchBotState(true);
       }
+      const isRunning = data.state?.isRunning ?? data.isRunning ?? targetState;
+      showNotification(isRunning ? '🚀 Bot 24/7 Activado y Operando' : '⏸️ Bot Pausado');
     } catch (err: any) {
       setError(err.message);
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Switch Active Account
   const switchAccount = useCallback(async (accountId: string) => {
@@ -175,16 +185,14 @@ export function useCloudBot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId })
       });
-      if (data.state) {
-        setBotState(data.state);
-      } else {
+      if (!updateStateFromResponse(data)) {
         await fetchBotState(true);
       }
       showNotification(data.message || 'Cuenta activa actualizada');
     } catch (err: any) {
       setError(err.message);
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Sync Live Balance with Broker
   const syncAccountBalance = useCallback(async (accountId: string) => {
@@ -193,9 +201,7 @@ export function useCloudBot() {
       const data = await safeFetchJson<{ state?: CloudBotState; message?: string }>(`/api/cloud-bot/accounts/${accountId}/sync`, {
         method: 'POST'
       });
-      if (data.state) {
-        setBotState(data.state);
-      } else {
+      if (!updateStateFromResponse(data)) {
         await fetchBotState(true);
       }
       showNotification(data.message || 'Saldo sincronizado con broker');
@@ -204,7 +210,7 @@ export function useCloudBot() {
     } finally {
       setIsSyncing(false);
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Connect & Test MT5 Bridge
   const testAndConnectMT5 = useCallback(async (params: ConnectMT5Params): Promise<ConnectMT5Response> => {
@@ -223,9 +229,7 @@ export function useCloudBot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(accountData)
       });
-      if (data.state) {
-        setBotState(data.state);
-      } else {
+      if (!updateStateFromResponse(data)) {
         await fetchBotState(true);
       }
       showNotification(data.message || 'Cuenta vinculada exitosamente');
@@ -234,7 +238,7 @@ export function useCloudBot() {
       setError(err.message);
       throw err;
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Toggle Ticker Active
   const toggleTicker = useCallback(async (symbol: string) => {
@@ -244,13 +248,12 @@ export function useCloudBot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol })
       });
-      if (data.state) setBotState(data.state);
-      else await fetchBotState(true);
+      if (!updateStateFromResponse(data)) await fetchBotState(true);
       showNotification(data.message || `Ticker ${symbol} actualizado`);
     } catch (err: any) {
       setError(err.message);
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Toggle Strategy on Ticker
   const toggleStrategy = useCallback(async (symbol: string, strategyId: string) => {
@@ -260,13 +263,12 @@ export function useCloudBot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, strategyId })
       });
-      if (data.state) setBotState(data.state);
-      else await fetchBotState(true);
+      if (!updateStateFromResponse(data)) await fetchBotState(true);
       showNotification(data.message || 'Estrategia actualizada');
     } catch (err: any) {
       setError(err.message);
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Set Ticker Trigger Mode (Any vs Confluence)
   const setTickerMode = useCallback(async (symbol: string, triggerMode: 'ANY_TRIGGERS' | 'CONFLUENCE_ALL') => {
@@ -276,13 +278,12 @@ export function useCloudBot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, triggerMode })
       });
-      if (data.state) setBotState(data.state);
-      else await fetchBotState(true);
+      if (!updateStateFromResponse(data)) await fetchBotState(true);
       showNotification(data.message || `Modo cambiado a: ${triggerMode}`);
     } catch (err: any) {
       setError(err.message);
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Force Market Scan
   const forceScan = useCallback(async () => {
@@ -290,13 +291,12 @@ export function useCloudBot() {
       const data = await safeFetchJson<{ state?: CloudBotState }>('/api/cloud-bot/scanner/force-scan', {
         method: 'POST'
       });
-      if (data.state) setBotState(data.state);
-      else await fetchBotState(true);
+      if (!updateStateFromResponse(data)) await fetchBotState(true);
       showNotification('📡 Escaneo forzado ejecutado');
     } catch (err: any) {
       setError(err.message || 'Error al forzar escaneo');
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Execute Strategy / Manual Trigger
   const executeStrategy = useCallback(async (symbol: string, strategyId?: string, direction?: 'BUY' | 'SELL') => {
@@ -306,15 +306,14 @@ export function useCloudBot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, strategyId, direction })
       });
-      if (data.state) setBotState(data.state);
-      else await fetchBotState(true);
+      if (!updateStateFromResponse(data)) await fetchBotState(true);
       showNotification(data.message || `✅ Orden ejecutada en ${symbol}`);
       return data;
     } catch (err: any) {
       setError(err.message);
       throw err;
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Calculate Sizing with Anti-Hunt Cushion
   const calculateSizing = useCallback(async (symbol: string, balance: number, riskPercent: number): Promise<SizingCalculationResult> => {
@@ -332,13 +331,12 @@ export function useCloudBot() {
       const data = await safeFetchJson<{ state?: CloudBotState }>('/api/cloud-bot/circuit-breaker/reset', {
         method: 'POST'
       });
-      if (data.state) setBotState(data.state);
-      else await fetchBotState(true);
+      if (!updateStateFromResponse(data)) await fetchBotState(true);
       showNotification('✅ Circuit Breaker reiniciado y protección restaurada');
     } catch (err: any) {
       setError(err.message);
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Add Journal Note
   const addJournalNote = useCallback(async (tradeId: string, note: string) => {
@@ -348,13 +346,12 @@ export function useCloudBot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tradeId, note })
       });
-      if (data.state) setBotState(data.state);
-      else await fetchBotState(true);
+      if (!updateStateFromResponse(data)) await fetchBotState(true);
       showNotification('Nota guardada en el diario');
     } catch (err: any) {
       setError(err.message);
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
   // Update Anti-Hunt Cushion
   const updateCushion = useCallback(async (symbol: string, cushionPips: number) => {
@@ -364,18 +361,18 @@ export function useCloudBot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, cushionPips })
       });
-      if (data.state) setBotState(data.state);
-      else await fetchBotState(true);
+      if (!updateStateFromResponse(data)) await fetchBotState(true);
       showNotification(`Colchón anti-caza actualizado para ${symbol}`);
     } catch (err: any) {
       setError(err.message);
     }
-  }, [fetchBotState, showNotification]);
+  }, [fetchBotState, showNotification, updateStateFromResponse]);
 
-  // Active account helper
-  const activeAccount: TradingAccount | undefined = botState?.accounts.find(
-    (a) => a.id === botState.activeAccountId
-  ) || botState?.accounts[0];
+  // Active account helper (safely guarded against undefined/empty accounts)
+  const accounts: TradingAccount[] = Array.isArray(botState?.accounts) ? botState!.accounts : [];
+  const activeAccount: TradingAccount | undefined =
+    accounts.find((a) => a.id === botState?.activeAccountId) ||
+    accounts[0];
 
   return {
     botState,

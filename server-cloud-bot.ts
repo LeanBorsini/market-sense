@@ -1303,7 +1303,8 @@ export function initCloudBotRoutes(app: express.Express) {
   app.get('/api/cloud-bot/state', (req, res) => {
     res.json({
       success: true,
-      data: cloudBotState
+      data: cloudBotState,
+      state: cloudBotState
     });
   });
 
@@ -1313,6 +1314,7 @@ export function initCloudBotRoutes(app: express.Express) {
     res.json({
       success: true,
       isRunning: cloudBotState.isRunning,
+      state: cloudBotState,
       message: cloudBotState.isRunning ? 'Bot en la nube activo y operando 24/7' : 'Bot en la nube pausado'
     });
   });

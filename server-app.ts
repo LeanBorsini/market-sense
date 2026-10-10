@@ -3,7 +3,6 @@ import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
-import { initCloudBotRoutes } from './server-cloud-bot';
 
 dotenv.config();
 
@@ -20,9 +19,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-
-// Initialize 24/7 Cloud Autonomous Trading Bot Engine
-initCloudBotRoutes(app);
 
 // Initialize Gemini Client with User-Agent as required by AI Studio guidelines
 const ai = new GoogleGenAI({
@@ -310,25 +306,6 @@ app.get('/api/health', (req, res) => {
     service: 'MarketSense AI Full-Stack Server',
     timestamp: new Date().toISOString()
   });
-});
-
-// Fedora runner files direct download endpoints
-app.get('/api/fedora-bot/marketsense_bot.py', (req, res) => {
-  const filePath = path.resolve(process.cwd(), 'fedora-runner', 'marketsense_bot.py');
-  if (fs.existsSync(filePath)) {
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    return res.sendFile(filePath);
-  }
-  return res.status(404).send('File not found');
-});
-
-app.get('/api/fedora-bot/install-fedora.sh', (req, res) => {
-  const filePath = path.resolve(process.cwd(), 'fedora-runner', 'install-fedora.sh');
-  if (fs.existsSync(filePath)) {
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    return res.sendFile(filePath);
-  }
-  return res.status(404).send('File not found');
 });
 
 // Global JSON error handler to ensure all API errors return clean JSON

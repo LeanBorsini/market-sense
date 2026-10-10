@@ -3,9 +3,14 @@ import { MovementCause, DailyMacroImpact, CriticalEvent, GlobalMarketPulse } fro
 import { AsymmetryVisualMetrics } from '../components/AsymmetryVisualizer';
 
 /**
- * Navigation tabs available across the MarketSense terminal.
+ * Navigation tabs available across the MarketSense terminal:
+ * - Watchlist / Mi Cartera
+ * - Impact / Noticias e Impacto Macro
+ * - Radar Gems / Oportunidades
+ * - Events & Opportunities / Calendario
+ * - Lab / Laboratorio y Simulación
  */
-export type ActiveSection = 'watchlist' | 'impact' | 'radar_gems' | 'events_opportunities' | 'lab' | 'fedora_bot';
+export type ActiveSection = 'watchlist' | 'impact' | 'radar_gems' | 'events_opportunities' | 'lab';
 
 /**
  * Editorial Typography Theme Options:

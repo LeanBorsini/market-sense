@@ -35,7 +35,6 @@ import { MacroImpactView } from './components/views/MacroImpactView';
 import { RadarOpportunitiesView } from './components/views/RadarOpportunitiesView';
 import { CalendarView } from './components/views/CalendarView';
 import { LabView } from './components/views/LabView';
-import { CloudTradingDeskView } from './components/views/CloudTradingDeskView';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AuditModal } from './components/modals/AuditModal';
 import { TradingViewModal } from './components/modals/TradingViewModal';
@@ -507,12 +506,6 @@ export default function App() {
 
         {activeSection === 'lab' && (
           <LabView onOpenChart={setSelectedChartAsset} />
-        )}
-
-        {activeSection === 'fedora_bot' && (
-          <ErrorBoundary fallbackTitle="Centro de Mando del Bot en la Nube 24/7">
-            <CloudTradingDeskView />
-          </ErrorBoundary>
         )}
       </main>
 

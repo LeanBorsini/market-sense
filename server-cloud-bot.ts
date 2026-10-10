@@ -616,7 +616,7 @@ export interface EvolutionaryAdjustment {
 }
 
 // Global In-Memory Cloud Bot State running 24/7 on the server
-let cloudBotState = {
+export let cloudBotState = {
   isRunning: true,
   lastTickTime: new Date().toISOString(),
   accounts: INITIAL_ACCOUNTS,

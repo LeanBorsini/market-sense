@@ -101,7 +101,7 @@ export const MacroImpactView: React.FC<MacroImpactViewProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-slate-500 text-[10.5px]">
-            <span>⏰ 4 veces al día (09:00, 15:30, 20:00 y 22:00 CET)</span>
+            <span>⚡ Actualización continua en tiempo real y campanas bursátiles (09:00, 15:30, 20:00 y 22:00 CET)</span>
           </div>
         </div>
 
@@ -173,9 +173,21 @@ export const MacroImpactView: React.FC<MacroImpactViewProps> = ({
             </div>
 
             {/* Audited Source Verification */}
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 bg-[#FAF8F5] px-3 py-1.5 rounded-lg border border-[#EDE8DE]">
-              <span className="font-semibold text-slate-700">🏛️ Fuente:</span>
-              <span className="text-slate-800">{item.source}</span>
+            <div className="flex items-center justify-between gap-1.5 text-[11px] text-slate-500 bg-[#FAF8F5] px-3 py-1.5 rounded-lg border border-[#EDE8DE]">
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="font-semibold text-slate-700">🏛️ Fuente:</span>
+                <span className="text-slate-800 truncate">{item.source}</span>
+              </div>
+              {item.link && (
+                <a
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-700 hover:text-emerald-800 hover:underline font-semibold shrink-0"
+                >
+                  Leer noticia ↗
+                </a>
+              )}
             </div>
 
             {/* Impact for your money */}

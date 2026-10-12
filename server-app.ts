@@ -299,6 +299,12 @@ app.get('/api/market-prices', async (req, res) => {
   }
 });
 
+// Live financial news feed endpoint with real-time RSS from Dow Jones & Yahoo Finance
+import liveNewsHandler from './api/live-news';
+app.get('/api/live-news', async (req, res) => {
+  return await liveNewsHandler(req, res);
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 

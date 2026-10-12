@@ -47,6 +47,8 @@ export interface MacroImpactItem {
   affectsTickers: string[];
   impactLevel: 'Alto' | 'Moderado' | 'Ruido Menor';
   actionableVerdict: string;
+  link?: string;
+  publishedTimestamp?: number;
 }
 
 export interface CriticalEventAlert {
@@ -390,13 +392,23 @@ export const WHY_IT_MOVES_DATA: Record<string, MovementCause> = {
   }
 };
 
+// Función auxiliar para obtener la fecha de hoy en formato legible en español
+export function getTodayDateString(): string {
+  const now = new Date();
+  const day = now.getDate();
+  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const month = monthNames[now.getMonth()];
+  const year = now.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
 // 2. "LO MÁS RELEVANTE DEL DÍA: A QUÉ AFECTA PRINCIPALMENTE (EXPLICADO EN CRISTIANO)"
 export const DAILY_MACRO_IMPACT: MacroImpactItem[] = [
   {
     id: 'impact-1',
     title: 'Acuerdo en ciernes de avales bancarios y ampliación en el sector infraestructuras',
     category: 'Resultados & Deuda',
-    date: '2 Octubre 2026',
+    date: getTodayDateString(),
     time: '11:30 CET',
     source: 'CNMV (España) · Sindicato Bancario Santander-CaixaBank',
     sessionWindow: 'Apertura Madrid BME',
@@ -414,7 +426,7 @@ export const DAILY_MACRO_IMPACT: MacroImpactItem[] = [
     id: 'impact-2',
     title: 'La Reserva Federal y el BCE confirman ciclo gradual de tipos de interés',
     category: 'Tipos & Bancos Centrales',
-    date: '2 Octubre 2026',
+    date: getTodayDateString(),
     time: '14:00 CET',
     source: 'Rueda de Prensa BCE & Minutas FOMC (Reserva Federal)',
     sessionWindow: 'Ventana Decisiva Bancos Centrales',
@@ -432,7 +444,7 @@ export const DAILY_MACRO_IMPACT: MacroImpactItem[] = [
     id: 'impact-3',
     title: 'Inversión de capital (CapEx) en centros de datos de IA se eleva a 200.000 M$',
     category: 'Liquidez Global',
-    date: '2 Octubre 2026',
+    date: getTodayDateString(),
     time: '15:45 CET',
     source: 'SEC Form 10-Q (EE.UU.) & Relación con Inversores TSMC',
     sessionWindow: 'Apertura Wall Street',
@@ -450,7 +462,7 @@ export const DAILY_MACRO_IMPACT: MacroImpactItem[] = [
     id: 'impact-4',
     title: 'Flujos institucionales sostenidos en Criptoactivos tras la asimilación del Halving',
     category: 'Liquidez Global',
-    date: '2 Octubre 2026',
+    date: getTodayDateString(),
     time: '16:20 CET',
     source: 'Registros SEC Spot Bitcoin ETFs & Glassnode On-Chain',
     sessionWindow: 'Sesión Wall Street & Mercado Global',

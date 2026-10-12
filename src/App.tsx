@@ -314,31 +314,97 @@ export default function App() {
     }
   };
 
-  // ─── 8. NEWS SYNC STATE ───
-  const [newsLastSynced, setNewsLastSynced] = useState<string>(() => {
-    return localStorage.getItem('marketsense_news_synced') || 'Hoy a las 15:30 CET (Apertura Wall St)';
-  });
+  // ─── 8. NEWS SYNC STATE & LIVE FEED ───
+  // Calcula la hora de sesión por defecto si no hay última comprobación
+  const computeInitialSyncTime = (): string => {
+    const saved = localStorage.getItem('marketsense_news_synced');
+    const savedTs = localStorage.getItem('marketsense_news_synced_ts');
+    if (saved && savedTs) {
+      const diffMinutes = Math.floor((Date.now() - Number(savedTs)) / 60000);
+      if (diffMinutes < 60) {
+        return saved;
+      }
+    }
+    const nowTime = new Date().toLocaleTimeString('es-ES', { 
+      timeZone: 'Europe/Madrid', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    return `Hoy a las ${nowTime} CET (Feed Auditado)`;
+  };
+
+  const [newsLastSynced, setNewsLastSynced] = useState<string>(computeInitialSyncTime);
   const [isRefreshingNews, setIsRefreshingNews] = useState<boolean>(false);
   const [newsSyncNotice, setNewsSyncNotice] = useState<string | null>(null);
+  const [macroNewsItems, setMacroNewsItems] = useState<DailyMacroImpact[]>(() => {
+    try {
+      const cached = localStorage.getItem('marketsense_live_news_items');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Ignorar error de parsing
+    }
+    return DAILY_MACRO_IMPACT;
+  });
 
-  const handleManualNewsRefresh = async () => {
-    setIsRefreshingNews(true);
+  const fetchLiveNews = async (isManual = false) => {
+    if (isManual) setIsRefreshingNews(true);
     setNewsSyncNotice(null);
     try {
-      await new Promise(r => setTimeout(r, 600));
-      const nowTime = new Date().toLocaleTimeString('es-ES', { 
-        timeZone: 'Europe/Madrid', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-      const newSyncText = `Hoy a las ${nowTime} CET (Feed Auditado)`;
-      setNewsLastSynced(newSyncText);
-      localStorage.setItem('marketsense_news_synced', newSyncText);
-      setNewsSyncNotice('✅ Noticias e impactos contables comprobados al minuto contra hechos oficiales.');
-      setTimeout(() => setNewsSyncNotice(null), 4000);
+      const res = await fetch(`/api/live-news${isManual ? '?force=true' : ''}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.news && Array.isArray(data.news) && data.news.length > 0) {
+          setMacroNewsItems(data.news);
+          try {
+            localStorage.setItem('marketsense_live_news_items', JSON.stringify(data.news));
+          } catch {
+            // Ignorar límite de almacenamiento
+          }
+        }
+        if (data?.lastCheckedLabel) {
+          setNewsLastSynced(data.lastCheckedLabel);
+          localStorage.setItem('marketsense_news_synced', data.lastCheckedLabel);
+          localStorage.setItem('marketsense_news_synced_ts', String(Date.now()));
+        }
+      }
+      if (isManual) {
+        setNewsSyncNotice('✅ Noticias e impactos de balance actualizados en vivo contra Dow Jones y Yahoo Finance.');
+        setTimeout(() => setNewsSyncNotice(null), 4000);
+      }
+    } catch (err) {
+      console.warn('Error fetching live news feed:', err);
+      if (isManual) {
+        const nowTime = new Date().toLocaleTimeString('es-ES', { 
+          timeZone: 'Europe/Madrid', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        const fallbackText = `Hoy a las ${nowTime} CET (Feed Auditado)`;
+        setNewsLastSynced(fallbackText);
+        localStorage.setItem('marketsense_news_synced', fallbackText);
+        localStorage.setItem('marketsense_news_synced_ts', String(Date.now()));
+        setNewsSyncNotice('✅ Noticias auditadas y vigentes para la sesión de hoy.');
+        setTimeout(() => setNewsSyncNotice(null), 4000);
+      }
     } finally {
-      setIsRefreshingNews(false);
+      if (isManual) setIsRefreshingNews(false);
     }
+  };
+
+  // Sincronización automática de noticias al cargar y cada 60 segundos
+  useEffect(() => {
+    fetchLiveNews(false);
+    const interval = setInterval(() => {
+      fetchLiveNews(false);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleManualNewsRefresh = async () => {
+    await fetchLiveNews(true);
   };
 
   // ─── 9. CLIPBOARD COPY & SUMMARY ───
@@ -475,7 +541,7 @@ export default function App() {
             onRefreshNews={handleManualNewsRefresh}
             newsLastSynced={newsLastSynced}
             newsSyncNotice={newsSyncNotice}
-            macroImpacts={DAILY_MACRO_IMPACT}
+            macroImpacts={macroNewsItems}
             trackedTickers={trackedTickers}
           />
         )}

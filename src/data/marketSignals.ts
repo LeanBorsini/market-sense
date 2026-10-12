@@ -478,6 +478,100 @@ export const DAILY_MACRO_IMPACT: MacroImpactItem[] = [
   }
 ];
 
+// ARCHIVO HISTÓRICO DE NOTICIAS DE DÍAS ANTERIORES
+export const ARCHIVED_MACRO_NEWS: MacroImpactItem[] = [
+  {
+    id: 'hist-10oct',
+    title: 'Banco Santander formaliza amortización anticipada de deuda sénior y eleva recompra de acciones',
+    category: 'Resultados & Deuda',
+    date: '10 Octubre 2026',
+    time: '18:40 CET',
+    source: 'Hecho Relevante CNMV & Registro EBA',
+    sessionWindow: 'Cierre Sesión Europea',
+    statusBadge: 'Archivo Histórico',
+    mediaNoise: 'Especulación sobre si la banca europea recortará dividendos ante tipos más bajos.',
+    fundamentalReality: 'El exceso de capital CET1 por encima del 12.8% permite a Santander retirar acciones del mercado, lo que incrementa automáticamente el beneficio por acción (BPA) de los accionistas que se quedan.',
+    plainLanguage: 'En cristiano: Santander está comprando y destruyendo sus propias acciones con el dinero que le sobra en caja. Para ti como inversor, significa que cada una de tus acciones pasa a representar un pedazo más grande del banco sin que tengas que poner ni un euro más.',
+    trafficLight: 'VERDE',
+    affectsSectors: ['Banca Española', 'Sector Financiero'],
+    affectsTickers: ['SAN'],
+    impactLevel: 'Alto',
+    actionableVerdict: 'Excelente señal de disciplina de capital. Las recompras de acciones sostienen el valor del título a medio plazo.'
+  },
+  {
+    id: 'hist-08oct',
+    title: 'TSMC reporta ingresos preliminares mensuales con un incremento del 34% interanual',
+    category: 'Resultados & Deuda',
+    date: '8 Octubre 2026',
+    time: '07:15 CET',
+    source: 'Bolsa de Taiwán (TWSE) & Filial EE.UU. SEC',
+    sessionWindow: 'Apertura Asiática',
+    statusBadge: 'Archivo Histórico',
+    mediaNoise: 'Noticias sobre rotación de inversores hacia sectores defensivos y tradicionales.',
+    fundamentalReality: 'La demanda de obleas de 3 nanómetros y el empaquetado CoWoS para Nvidia y Apple superan toda la capacidad instalada. Cero inventario ocioso en fábricas.',
+    plainLanguage: 'En cristiano: A pesar de que los tertulianos decían que la venta de chips se frenaría, TSMC vendió un tercio más que el año pasado en el mismo mes. Sus clientes siguen haciendo cola y pagando por adelantado.',
+    trafficLight: 'VERDE',
+    affectsSectors: ['Semiconductores', 'Megacaps Tecnológicas'],
+    affectsTickers: ['TSM', 'VOO'],
+    impactLevel: 'Alto',
+    actionableVerdict: 'Confirma que el foso defensivo de TSMC sigue intacto y que el ciclo de beneficios tecnológicos no se ha agotado.'
+  },
+  {
+    id: 'hist-05oct',
+    title: 'Repsol y petroleras europeas reajustan producción tras estabilización del barril Brent en 78$',
+    category: 'Liquidez Global',
+    date: '5 Octubre 2026',
+    time: '12:50 CET',
+    source: 'OPEP+ Comunicado Oficial & Informes IEA',
+    sessionWindow: 'Mediodía Europeo',
+    statusBadge: 'Archivo Histórico',
+    mediaNoise: 'Miedo a caídas bruscas del crudo por menor demanda de combustible en Asia.',
+    fundamentalReality: 'Con el petróleo a más de 70$ el barril, el punto muerto (break-even) de Repsol está cubierto con holgura (menos de 45$/barril), garantizando dividendo y flujo libre de caja.',
+    plainLanguage: 'En cristiano: Aunque el precio del petróleo oscile, a Repsol le cuesta muy poco extraer cada barril. Todo lo que venda por encima de 45$ es dinero limpio para pagar dividendos a sus accionistas.',
+    trafficLight: 'VERDE',
+    affectsSectors: ['Energía & Petróleo', 'Ibex 35'],
+    affectsTickers: ['REP'],
+    impactLevel: 'Moderado',
+    actionableVerdict: 'Generación de caja asegurada con rentabilidad por dividendo atractiva (>6.5%).'
+  },
+  {
+    id: 'hist-02oct-1',
+    title: 'Comité de acreedores de OHLA valida la ampliación de capital sin derecho preferente para nuevos socios',
+    category: 'Resultados & Deuda',
+    date: '2 Octubre 2026',
+    time: '17:20 CET',
+    source: 'CNMV Notificación Hecho Relevante',
+    sessionWindow: 'Cierre Madrid BME',
+    statusBadge: 'Archivo Histórico',
+    mediaNoise: 'Titulares de alarma sobre dilución de accionistas minoritarios.',
+    fundamentalReality: 'La entrada de nuevos fondos industriales aporta dinero fresco a la caja para liberar avales bloqueados, permitiendo ejecutar 8.200 M€ en obras de autopistas y hospitales ya adjudicadas.',
+    plainLanguage: 'En cristiano: Los nuevos socios ponen dinero contante y sonante en la empresa para pagar a los bancos y desbloquear los avales de obra. Aunque haya más acciones, la empresa evita la quiebra y puede cobrar por construir sus proyectos en EE.UU.',
+    trafficLight: 'AMBAR',
+    affectsSectors: ['Construcción e Ingeniería', 'Turnaround'],
+    affectsTickers: ['OHLA'],
+    impactLevel: 'Alto',
+    actionableVerdict: 'Fase decisiva de reestructuración. La supervivencia y solvencia de la constructora quedan aseguradas.'
+  },
+  {
+    id: 'hist-02oct-2',
+    title: 'Informe de empleo no agrícola en EE.UU. (Non-Farm Payrolls) disipa temores de recesión profunda',
+    category: 'Tipos & Bancos Centrales',
+    date: '2 Octubre 2026',
+    time: '14:30 CET',
+    source: 'U.S. Bureau of Labor Statistics (BLS)',
+    sessionWindow: 'Pre-Market Wall Street',
+    statusBadge: 'Archivo Histórico',
+    mediaNoise: 'Debates sobre si la economía se está enfriando demasiado rápido.',
+    fundamentalReality: 'Se crearon 140.000 puestos de trabajo con desempleo estable en 4.1%. Las familias siguen cobrando sus nóminas y consumiendo, sosteniendo los ingresos corporativos del S&P 500.',
+    plainLanguage: 'En cristiano: La economía estadounidense sigue funcionando y la gente sigue trabajando y gastando. Esto significa que las empresas que componen tu fondo VOO continúan vendiendo sus productos sin que haya una crisis de impagos.',
+    trafficLight: 'VERDE',
+    affectsSectors: ['Bolsa Global (S&P 500)', 'Consumo'],
+    affectsTickers: ['VOO'],
+    impactLevel: 'Alto',
+    actionableVerdict: 'Escenario de "aterrizaje suave" ideal para la renta variable indexada a largo plazo.'
+  }
+];
+
 // 3. "ALERTAS DE EVENTOS CRÍTICOS" (Solo fechas decisivas con impacto en la caja)
 export const CRITICAL_EVENTS_CALENDAR: CriticalEventAlert[] = [
   {

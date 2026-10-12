@@ -16,6 +16,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   WHY_IT_MOVES_DATA, 
   DAILY_MACRO_IMPACT, 
+  ARCHIVED_MACRO_NEWS,
   CRITICAL_EVENTS_CALENDAR, 
   auditTickerFundamentals,
   MovementCause,
@@ -542,6 +543,7 @@ export default function App() {
             newsLastSynced={newsLastSynced}
             newsSyncNotice={newsSyncNotice}
             macroImpacts={macroNewsItems}
+            archivedNews={ARCHIVED_MACRO_NEWS}
             trackedTickers={trackedTickers}
           />
         )}
